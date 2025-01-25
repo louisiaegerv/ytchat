@@ -1,38 +1,48 @@
-import FetchDataSteps from "@/components/tutorial/fetch-data-steps";
-import { createClient } from "@/utils/supabase/server";
-import { InfoIcon } from "lucide-react";
-import { redirect } from "next/navigation";
+"use client"
 
-export default async function ProtectedPage() {
-  const supabase = await createClient();
+import { TranscriptForm } from "@/components/transcript-form"
+import { useState } from "react"
+import { TranscriptDisplay } from "@/components/transcript-display"
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export interface TranscriptEntry {
+  start: number
+  text: string
+}
 
-  if (!user) {
-    return redirect("/sign-in");
-  }
+function parseTranscript(rawTranscript: string): TranscriptEntry[] {
+  if (!rawTranscript) return []
+  
+  return rawTranscript.split('\n').map(line => {
+    const match = line.match(/^\[(\d+\.\d+)\] (.*)$/)
+    if (!match) return null
+    
+    return {
+      start: parseFloat(match[1]),
+      text: match[2].trim()
+    }
+  }).filter(Boolean) as TranscriptEntry[]
+}
+
+export default function ProtectedPage() {
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
+  const [videoId, setVideoId] = useState('')
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          This is a protected page that you can only see as an authenticated
-          user
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(user, null, 2)}
-        </pre>
-      </div>
-      <div>
-        <h2 className="font-bold text-2xl mb-4">Next steps</h2>
-        <FetchDataSteps />
+    <div className="max-w-5xl w-full mx-auto px-4 sm:px-6">
+        <div className={`${transcript.length > 0 ? 'md:grid md:grid-cols-2' : 'mx-auto'} w-full gap-6 flex flex-col md:flex-row md:space-y-0`}>
+          <TranscriptForm 
+            setTranscript={setTranscript}
+            setVideoId={setVideoId}
+            transcript={transcript}
+          />
+          
+          {transcript.length > 0 && (
+          <TranscriptDisplay 
+            transcript={transcript}
+            videoId={videoId}
+          />
+          )}
       </div>
     </div>
-  );
+  )
 }
