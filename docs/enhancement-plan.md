@@ -18,28 +18,219 @@
 
 ---
 
-## 2. Supabase Integration for Persistent Storage
+## 2. Supabase Integration for Persistent Storage (Done)
 
 ### Supabase Setup
 
-- Tables:
-  - **videos**: id, user_id, youtube_url, title, tags, group_id, created_at
-  - **transcripts**: id, video_id, content, saved_at
-  - **summaries**: id, video_id, content, saved_at
-  - **chats**: id, video_id, user_id, message, response, timestamp
-  - **groups**: id, user_id, name, description
-- Add RLS policies to restrict data per user.
+- Tables: use Supabase MCP Server tool to read the table schemas
 
 ### Auto-save Functionality
 
-- Save transcript after extraction.
+- Save transcript (pulled from 3rd party API) and video metadata (using YouTube Data v3 API) after extraction.
 - Save summary after generation.
 - Save chat exchanges.
 - Use Supabase client SDK for CRUD.
 
 ---
 
+### 2.1. Supabase Project Setup (Done)
+
+- **Create a Supabase Project:**
+
+  - Go to [supabase.com](https://supabase.com/) and sign in.
+  - Create a new project and note your Project URL and anon/public API key.
+
+- **Install Supabase Client SDK:**
+
+  ```bash
+  npm install @supabase/supabase-js
+  ```
+
+  - Store your Supabase URL and API key in environment variables (e.g., `.env.local`):
+    ```
+    NEXT_PUBLIC_SUPABASE_URL=your-project-url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+    ```
+
+- **Initialize Supabase Client:**
+
+  - Create a utility (e.g., `utils/supabase/client.ts`):
+
+    **For classic client-only or simple SSR:**
+
+    ```ts
+    import { createClient } from "@supabase/supabase-js";
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+    export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    ```
+
+    **For modern Next.js apps with SSR/server components (recommended):**
+
+    ```ts
+    import { createBrowserClient } from "@supabase/ssr";
+
+    export const createClient = () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+    ```
+
+    - The SSR-friendly pattern avoids sharing a singleton between requests and is compatible with Next.js app directory/server components.
+    - Use `createClient()` wherever you need a Supabase client instance.
+    - Choose the pattern that best fits your app architecture.
+
+---
+
+### 2.2. Database Schema (Done)
+
+- [x] **Created Tables:**
+
+  - created the following tables in Supabase:
+
+    ```sql
+
+    -- groups table
+    create table groups (
+      id uuid primary key default uuid_generate_v4(),
+      user_id uuid references auth.users not null,
+      name text,
+      description text
+    );
+
+    -- videos table
+    create table videos (
+      id uuid primary key default uuid_generate_v4(),
+      user_id uuid references auth.users not null,
+      youtube_url text not null,
+      youtube_id text not null unique,
+      title text,
+      tags text[],
+      created_at timestamp with time zone default now()
+    );
+
+    -- video_groups join table for many-to-many relationship
+    create table video_groups (
+      video_id uuid references videos not null,
+      group_id uuid references groups not null,
+      primary key (video_id, group_id)
+    );
+
+    -- transcripts table
+    create table transcripts (
+      id uuid primary key default uuid_generate_v4(),
+      video_id uuid references videos not null,
+      content text,
+      saved_at timestamp with time zone default now()
+    );
+
+    -- summaries table
+    create table summaries (
+      id uuid primary key default uuid_generate_v4(),
+      video_id uuid references videos not null,
+      content text,
+      saved_at timestamp with time zone default now()
+    );
+
+    -- chats table
+    create table chats (
+      id uuid primary key default uuid_generate_v4(),
+      video_id uuid references videos not null,
+      user_id uuid references auth.users not null,
+      message text,
+      response text,
+      timestamp timestamp with time zone default now()
+    );
+
+    ```
+
+---
+
+### 2.3. Row Level Security (Done)
+
+- [x] **Enabled RLS:**
+  - enabled Row Level Security (RLS) for each table
+- [x] **Added RLS Policies:**
+  - Example: Only allow users to access their own data.
+
+---
+
+### 2.4. Auto-save Functionality (Done)
+
+- **Save Transcript After Extraction:**
+
+  - After extracting a transcript, insert into `transcripts` and `videos` tables.
+    ```ts
+    // Example: Save transcript
+    const { data, error } = await supabase
+      .from("transcripts")
+      .insert([{ video_id, content }]);
+    ```
+
+- **Save Summary After Generation:**
+
+  ```ts
+  // Example: Save summary
+  const { data, error } = await supabase
+    .from("summaries")
+    .insert([{ video_id, content }]);
+  ```
+
+- **Save Chat Exchanges:**
+
+  ```ts
+  // Example: Save chat
+  const { data, error } = await supabase
+    .from("chats")
+    .insert([{ video_id, user_id, message, response }]);
+  ```
+
+- **Best Practices:**
+  - Use upsert for idempotency if needed.
+  - Handle errors and show user feedback.
+  - Use Supabase's real-time features for live updates if desired.
+
+---
+
+### 2.5. CRUD Operations
+
+- **Fetch Data:**
+
+  ```ts
+  // Fetch all videos for current user
+  const { data, error } = await supabase
+    .from("videos")
+    .select("*")
+    .order("created_at", { ascending: false });
+  ```
+
+- **Update Data:**
+
+  ```ts
+  // Update video tags
+  const { data, error } = await supabase
+    .from("videos")
+    .update({ tags: ["tag1", "tag2"] })
+    .eq("id", videoId);
+  ```
+
+- **Delete Data:**
+  ```ts
+  // Delete a video
+  const { data, error } = await supabase
+    .from("videos")
+    .delete()
+    .eq("id", videoId);
+  ```
+
+---
+
 ## 3. Saved Videos Library
+
+Library = list of videos that user has processed in the past (will be saved in the `videos` table). Offer 2 view options a list view and a 2 column card view.
 
 ### Search, Filter, Tagging
 

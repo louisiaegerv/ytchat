@@ -1,38 +1,67 @@
-import React from "react";
+// Dialog modal for summary expansion
 import { BlinkBlur } from "react-loading-indicators";
 import { SummaryButton } from "@/components/summary-button";
+import { useVideoContext } from "@/components/VideoContext";
 import type { TranscriptEntry } from "@/utils/transcriptUtils";
+import Markdown from "markdown-to-jsx";
+import { useEffect } from "react";
+import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
 
 interface AISummaryPanelProps {
-  aiSummary: string;
   loadingSummary: boolean;
   parsedTranscript: TranscriptEntry[];
   model: string;
-  setAiSummary: (s: string) => void;
   setModel: (m: string) => void;
   setLoadingSummary: (b: boolean) => void;
+  videoId?: string;
 }
 
 export function AISummaryPanel({
-  aiSummary,
   loadingSummary,
   parsedTranscript,
   model,
-  setAiSummary,
   setModel,
   setLoadingSummary,
 }: AISummaryPanelProps) {
+  const { videoUuid, aiSummary, setAiSummary } = useVideoContext();
+  const videoId = videoUuid || "";
+
+  useEffect(() => {
+    console.log("AI Summary:", aiSummary);
+  }, [aiSummary]);
+
   return (
     <>
       {aiSummary && (
-        <div
-          className="flex-1 overflow-y-auto"
-          style={{ scrollbarWidth: "none" }}
-        >
-          <div
-            className="prose dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: aiSummary }}
-          />
+        <div className="relative">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                className="sticky top-0 right-0 z-[100]  m-0 bg-background hover:bg-background/80"
+                size="sm"
+                variant="ghost"
+                aria-label="Expand summary"
+                style={{ float: "right" }}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent
+              className="max-h-[80vh] w-full max-w-5xl overflow-y-auto"
+              style={{ scrollbarWidth: "thin" }}
+            >
+              <div className="prose dark:prose-invert max-w-none">
+                <Markdown>{aiSummary}</Markdown>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <div className="flex-1" style={{ scrollbarWidth: "none" }}>
+            <div className="prose dark:prose-invert max-w-none">
+              <Markdown>{aiSummary}</Markdown>
+            </div>
+          </div>
         </div>
       )}
       {!aiSummary && !loadingSummary && (
@@ -47,6 +76,7 @@ export function AISummaryPanel({
               setModel={setModel}
               setLoadingSummary={setLoadingSummary}
               loading={loadingSummary}
+              videoId={videoId}
             />
           </div>
         </div>
@@ -54,7 +84,7 @@ export function AISummaryPanel({
       {!aiSummary && loadingSummary && (
         <div className="h-full flex flex-col items-center justify-center gap-4 mt-4">
           <BlinkBlur
-            color="#32cd32"
+            color="#1d4ed8"
             size="medium"
             text="Loading..."
             textColor="white"

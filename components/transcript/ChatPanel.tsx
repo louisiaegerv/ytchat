@@ -11,7 +11,6 @@ import {
 import { models } from "@/utils/openrouter";
 import type { ChatMessage } from "@/types/transcript";
 import type { TranscriptEntry } from "@/utils/transcriptUtils";
-
 interface ChatPanelProps {
   messages: ChatMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
@@ -19,6 +18,8 @@ interface ChatPanelProps {
   setModel: (m: string) => void;
   parsedTranscript: TranscriptEntry[];
   onSendMessage: (input: string) => Promise<void>;
+  input: string;
+  setInput: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export function ChatPanel({
@@ -28,8 +29,9 @@ export function ChatPanel({
   setModel,
   parsedTranscript,
   onSendMessage,
+  input,
+  setInput,
 }: ChatPanelProps) {
-  const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function ChatPanel({
   return (
     <>
       <div
-        className="flex-1 overflow-y-auto"
+        className="flex-1 overflow-y-auto p-3"
         style={{ scrollbarWidth: "none" }}
       >
         <div className="flex flex-col gap-4">
@@ -66,7 +68,7 @@ export function ChatPanel({
           <div ref={messagesEndRef} />
         </div>
       </div>
-      <div className="flex items-center gap-4 p-4">
+      <div className="flex items-center gap-4 p-3">
         <Select value={model} onValueChange={setModel}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select model" />
@@ -84,17 +86,17 @@ export function ChatPanel({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type your message..."
           className="flex-1"
-          onKeyDown={(e) => {
+          onKeyDown={async (e) => {
             if (e.key === "Enter") {
-              onSendMessage(input);
+              await onSendMessage(input);
               setInput("");
             }
           }}
         />
         <Button
           disabled={!input}
-          onClick={() => {
-            onSendMessage(input);
+          onClick={async () => {
+            await onSendMessage(input);
             setInput("");
           }}
         >

@@ -10,8 +10,7 @@ export async function sendMessage(
   const userMessage: ChatMessage = { role: "user", content: input };
 
   try {
-    const isGroqModel = model === "meta-llama/llama-4-scout-17b-16e-instruct";
-    const endpoint = isGroqModel ? "/api/groq" : "/api/openrouter";
+    const endpoint = "/api/openrouter";
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -23,7 +22,7 @@ export async function sendMessage(
           {
             role: "system",
             content:
-              "You are a helpful youtube video transcript assistant. Users will ask send messages about a video transcript and your goal is to use the transcript to answer their question. Past user messages and your responses are included for context.",
+              "You are a helpful youtube video transcript assistant/chatbot. Users will ask send messages about a video transcript and your goal is to use the transcript to answer their question. Past user messages and your responses are included for context.",
           },
           ...messages,
           userMessage,

@@ -5,27 +5,23 @@ export interface ModelOption {
 
 export const models: ModelOption[] = [
   {
-    id: "meta-llama/llama-4-scout-17b-16e-instruct",
-    name: "Llama 4 Scout (Groq)",
+    id: "google/gemini-2.5-flash-preview",
+    name: "Gemini 2.5 Flash",
+  },
+  {
+    id: "openai/gpt-4.1-nano",
+    name: "GPT 4.1 Nano",
   },
   {
     id: "meta-llama/llama-4-scout",
     name: "Llama 4 Scout",
-  },
-  {
-    id: "google/gemini-2.0-flash-001",
-    name: "Gemini 2.0 Flash",
-  },
-  {
-    id: "openrouter/quasar-alpha",
-    name: "Quasar Alpha",
   },
 ];
 
 export type OpenRouterModel =
   | "meta-llama/llama-4-scout"
   | "google/gemini-2.0-flash-001"
-  | "openrouter/quasar-alpha";
+  | "openrouter/optimus-alpha";
 
 export async function openRouterChat(
   model: OpenRouterModel,
