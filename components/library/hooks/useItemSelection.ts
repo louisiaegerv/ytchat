@@ -71,6 +71,9 @@ export const useItemSelection = ({
           (event.ctrlKey || event.metaKey)) ||
         isMobile
       ) {
+        if (!isSelectionMode) {
+          setIsSelectionMode(true);
+        }
         setSelectedItems((prev) =>
           prev.includes(id)
             ? prev.filter((itemId) => itemId !== id)

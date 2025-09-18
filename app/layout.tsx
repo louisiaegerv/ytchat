@@ -13,7 +13,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { GlobalDataProvider } from "@/components/GlobalDataContext";
 import { createClient } from "@/utils/supabase/server";
+import RouteBreadcrumbs from "@/components/breadcrumbs/route-breadcrumbs";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -21,8 +23,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Slipstream - YouTube Intelligence Platform",
+  description: "Go beyond the limits of YouTube.",
 };
 
 const geistSans = Geist({
@@ -53,63 +55,65 @@ export default async function RootLayout({
         >
           {isAuthenticated ? (
             <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset>
-                <header className="sticky top-0 z-30 bg-background rounded-t-lg flex h-16 shrink-0 items-center gap-2 px-4 border-b">
-                  <SidebarTrigger />
+              <GlobalDataProvider>
+                <AppSidebar />
+                <SidebarInset>
+                  <header className="sticky top-0 z-30 bg-background rounded-t-lg flex h-16 shrink-0 items-center gap-2 px-4 border-b">
+                    <SidebarTrigger />
 
-                  <nav aria-label="breadcrumb">
-                    <ol className="flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5">
-                      <li className="items-center gap-1.5 hidden md:block">
-                        <a
-                          className="transition-colors hover:text-foreground"
-                          href="#"
+                    <nav aria-label="breadcrumb">
+                      <ol className="flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5">
+                        <li className="items-center gap-1.5 hidden md:block">
+                          <a
+                            className="transition-colors hover:text-foreground"
+                            href="#"
+                          >
+                            Building Your Application
+                          </a>
+                        </li>
+                        <li
+                          role="presentation"
+                          aria-hidden="true"
+                          className="[&amp;>svg]:w-3.5 [&amp;>svg]:h-3.5 hidden md:block"
                         >
-                          Building Your Application
-                        </a>
-                      </li>
-                      <li
-                        role="presentation"
-                        aria-hidden="true"
-                        className="[&amp;>svg]:w-3.5 [&amp;>svg]:h-3.5 hidden md:block"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-chevron-right"
-                        >
-                          <path d="m9 18 6-6-6-6"></path>
-                        </svg>
-                      </li>
-                      <li className="inline-flex items-center gap-1.5">
-                        <span
-                          role="link"
-                          aria-disabled="true"
-                          aria-current="page"
-                          className="font-normal text-foreground"
-                        >
-                          Data Fetching
-                        </span>
-                      </li>
-                    </ol>
-                  </nav>
-                </header>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-chevron-right"
+                          >
+                            <path d="m9 18 6-6-6-6"></path>
+                          </svg>
+                        </li>
+                        <li className="inline-flex items-center gap-1.5">
+                          <span
+                            role="link"
+                            aria-disabled="true"
+                            aria-current="page"
+                            className="font-normal text-foreground"
+                          >
+                            Data Fetching
+                          </span>
+                        </li>
+                      </ol>
+                    </nav>
+                  </header>
 
-                {/* Main content */}
-                <main
-                  className="flex-1 flex flex-col items-center"
-                  style={{ scrollbarWidth: "none" }}
-                >
-                  {children}
-                </main>
-              </SidebarInset>
+                  {/* Main content */}
+                  <main
+                    className="flex-1 flex flex-col items-center"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {children}
+                  </main>
+                </SidebarInset>
+              </GlobalDataProvider>
             </SidebarProvider>
           ) : (
             <main className="min-h-screen flex flex-col items-center justify-center">

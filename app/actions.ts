@@ -132,3 +132,51 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/login");
 };
+
+/**
+ * Persist per-user blur flag for a set of videos.
+ */
+export async function setBlurFlagForVideos(
+  videoIds: string[],
+  value: boolean
+): Promise<{ updatedIds: string[] }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error("Not authenticated");
+  }
+
+  // Deduplicate IDs
+  const uniqueIds = Array.from(new Set(videoIds.filter(Boolean)));
+  if (uniqueIds.length === 0) {
+    return { updatedIds: [] };
+  }
+
+  // Chunking to avoid payload limits
+  const chunkSize = 200;
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    chunks.push(uniqueIds.slice(i, i + chunkSize));
+  }
+
+  for (const chunk of chunks) {
+    const rows = chunk.map((id) => ({
+      user_id: user.id,
+      video_id: id,
+      blur_thumbnail: value,
+    }));
+
+    const { error } = await supabase
+      .from("user_video_flags")
+      .upsert(rows, { onConflict: "user_id,video_id" });
+
+    if (error) {
+      throw new Error(`Failed to persist blur flags: ${error.message}`);
+    }
+  }
+
+  return { updatedIds: uniqueIds };
+}

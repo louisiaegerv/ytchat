@@ -30,7 +30,13 @@ export function parseTranscript(
 
     return lines.map((line) => {
       const match = line.match(/^\[(\d+\.\d+)\]\s+(.*?)\s*$/);
-      if (!match) throw new Error("Invalid transcript format");
+      if (!match)
+        throw new Error(
+          "Invalid transcript format for line: \n " +
+            line +
+            "\n\nFull Transcript result:" +
+            transcript
+        );
       return {
         start: parseFloat(match[1]),
         text: match[2].trim(),

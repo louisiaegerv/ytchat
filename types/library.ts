@@ -9,6 +9,7 @@ export type Video = {
   views?: number;
   likes?: number;
   comments?: number;
+  channels?: { title: string | null } | null; // Updated to reflect actual data structure (object, not array)
   tags: string[] | null;
 };
 
@@ -22,6 +23,9 @@ export type VideoWithFlags = Video & {
   views?: number;
   likes?: number;
   comments?: number;
+  channel_title?: string | null;
+  // Per-user UI flags
+  blurThumbnail?: boolean;
 };
 
 export type Group = {

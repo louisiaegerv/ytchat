@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCheck, Trash, Tags, Focus } from "lucide-react";
+import { CheckCheck, Trash, Tags, Focus, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface BulkActionBarProps {
@@ -8,6 +8,7 @@ interface BulkActionBarProps {
   onDelete: () => void;
   onTag?: () => void;
   onAnalyze?: () => void;
+  onToggleBlur?: () => void;
 }
 
 const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -16,6 +17,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onDelete,
   onTag,
   onAnalyze,
+  onToggleBlur,
 }) => {
   return (
     <div className="flex items-center gap-3 mt-2 mb-4 p-2 border rounded-md shadow-sm">
@@ -52,6 +54,17 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
       >
         <Focus size={16} />
         <span className="hidden sm:inline-block">Analyze</span>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onToggleBlur}
+        className="gap-2"
+        disabled={!onToggleBlur || selectedCount === 0}
+      >
+        {/* Icon hint only; actual choice of Eye/EyeOff is determined by majority rule in container */}
+        <Eye size={16} />
+        <span className="hidden sm:inline-block">Blur/Unblur</span>
       </Button>
       <Button
         variant="destructive"

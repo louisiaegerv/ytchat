@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import type { Video, Group, VideoGroup } from "@/types/library";
+import type { Video, Group, VideoGroup, VideoWithFlags } from "@/types/library";
 import LoadingSkeleton from "@/components/library/LoadingSkeleton";
 import ActiveFiltersBar from "@/components/library/ActiveFiltersBar";
 import LibraryControls from "@/components/library/LibraryControls";
@@ -31,7 +31,7 @@ import { useItemSelection } from "@/components/library/hooks/useItemSelection";
 const PAGE_SIZE = 12;
 
 export default function LibraryPage() {
-  const [videos, setVideos] = useState<Video[]>([]);
+  const [videos, setVideos] = useState<VideoWithFlags[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -178,18 +178,59 @@ export default function LibraryPage() {
         );
 
         // Map each video to include tags, hasSummary, hasChats, and new fields with defaults
-        const videosWithFlags = (data || []).map((video) => ({
-          ...video,
-          description: video.description || null,
-          published_at: video.published_at || video.created_at,
-          duration: video.duration || 0,
-          views: video.view_count || 0,
-          likes: video.like_count || 0,
-          comments: video.comment_count || 0,
-          tags: videoTagsMap[video.id] || [],
-          hasSummary: summaryVideoIds.has(video.id),
-          hasChats: chatVideoIds.has(video.id),
-        }));
+        let videosWithFlags: VideoWithFlags[] = (data || []).map((video) => {
+          // Destructure video to separate channels, then reconstruct
+          const { channels, ...restOfVideo } = video;
+
+          // Explicitly type and reconstruct channels to match the Video type
+          const typedChannels: { title: string | null } | null =
+            channels && typeof channels === "object" && !Array.isArray(channels)
+              ? { title: (channels as any).title }
+              : null;
+
+          const base: VideoWithFlags = {
+            ...(restOfVideo as any),
+            channels: typedChannels,
+            description: (video as any).description || null,
+            published_at:
+              (video as any).published_at || (video as any).created_at,
+            duration: (video as any).duration || 0,
+            views: (video as any).view_count || 0,
+            likes: (video as any).like_count || 0,
+            comments: (video as any).comment_count || 0,
+            tags: videoTagsMap[video.id] || [],
+            hasSummary: summaryVideoIds.has(video.id),
+            hasChats: chatVideoIds.has(video.id),
+            channel_title: typedChannels?.title || null,
+            blurThumbnail: false, // default, may be overridden by user flags fetch below
+          };
+          return base;
+        });
+
+        // Secondary fetch: per-user blur flags for current page videos
+        try {
+          if (videoIds.length > 0) {
+            const { data: flagsData, error: flagsError } = await supabase
+              .from("user_video_flags")
+              .select("video_id, blur_thumbnail")
+              .eq("user_id", userId)
+              .in("video_id", videoIds);
+
+            if (!flagsError && flagsData) {
+              const blurMap = new Map<string, boolean>();
+              flagsData.forEach((row: any) => {
+                blurMap.set(row.video_id, !!row.blur_thumbnail);
+              });
+              videosWithFlags = videosWithFlags.map((v) => ({
+                ...v,
+                blurThumbnail: blurMap.get(v.id) ?? false,
+              }));
+            }
+          }
+        } catch (_err) {
+          // Gracefully handle if table doesn't exist yet or other errors; default remains false
+          // no-op
+        }
 
         if (reset) {
           setVideos(videosWithFlags);
@@ -326,6 +367,49 @@ export default function LibraryPage() {
     setIsSelectionMode(!isSelectionMode);
   };
 
+  // Bulk blur/unblur handler with majority rule and optimistic update
+  const handleToggleBlur = async () => {
+    if (selectedItems.length === 0) return;
+
+    // Determine majority state among selected
+    let blurredCount = 0;
+    const selectedSet = new Set(selectedItems);
+    videos.forEach((v) => {
+      if (selectedSet.has(v.id) && v.blurThumbnail) blurredCount += 1;
+    });
+    const n = selectedItems.length;
+    const target = blurredCount >= Math.ceil(n / 2) ? false : true;
+
+    // Snapshot previous states for revert
+    const prevMap = new Map<string, boolean>();
+    videos.forEach((v) => {
+      if (selectedSet.has(v.id)) prevMap.set(v.id, !!v.blurThumbnail);
+    });
+
+    // Optimistic update
+    setVideos((prev) =>
+      prev.map((v) =>
+        selectedSet.has(v.id) ? { ...v, blurThumbnail: target } : v
+      )
+    );
+
+    // Persist
+    try {
+      const { setBlurFlagForVideos } = await import("@/app/actions");
+      await setBlurFlagForVideos(selectedItems, target);
+    } catch (err) {
+      // Revert only affected ids
+      console.warn("Failed to persist blur flag, reverting selection.", err);
+      setVideos((prev) =>
+        prev.map((v) =>
+          selectedSet.has(v.id)
+            ? { ...v, blurThumbnail: prevMap.get(v.id) ?? v.blurThumbnail }
+            : v
+        )
+      );
+    }
+  };
+
   return (
     <div className="container mx-auto pt-8 px-4 md:px-6 space-y-6">
       {/* Header Section */}
@@ -381,6 +465,7 @@ export default function LibraryPage() {
             onDelete={handleBulkDelete}
             onTag={handleBulkTag}
             onAnalyze={handleBulkAnalyze}
+            onToggleBlur={handleToggleBlur}
           />
         )}
 

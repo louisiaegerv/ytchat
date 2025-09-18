@@ -97,10 +97,12 @@ export default function VideoCard({
 
   // Handle click for selection or navigation
   const handleCardClick = (e: React.MouseEvent) => {
-    if (isSelectionMode && onSelect) {
+    // Check if Ctrl/Cmd key is pressed OR if already in selection mode
+    if (onSelect && (e.ctrlKey || e.metaKey || isSelectionMode)) {
+      e.preventDefault(); // Prevent default navigation if Ctrl/Cmd is pressed or in selection mode
       onSelect(video.id, e);
     }
-    // If not in selection mode, allow navigation (Link handles it)
+    // If not in selection mode and Ctrl/Cmd not pressed, allow navigation (Link handles it)
   };
 
   // Handle checkbox click (prevent navigation)
@@ -141,18 +143,31 @@ export default function VideoCard({
               {isSelected && <Check strokeWidth={4} size={14} />}
             </div>
           )}
-          <Link
-            href={`/explore?videoId=${video.id}`}
-            prefetch={false}
-            scroll={true}
-            tabIndex={isSelectionMode ? -1 : 0}
-          >
+          {isSelectionMode ? (
             <img
               src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
               alt={video.title || "Video Thumbnail"}
-              className="h-full w-full object-cover object-center"
+              className={cn(
+                "h-full w-full object-cover object-center filter transition",
+                video.blurThumbnail ? "blur-[6px]" : ""
+              )}
             />
-          </Link>
+          ) : (
+            <Link
+              href={`/explore?videoId=${video.id}`}
+              prefetch={false}
+              scroll={true}
+            >
+              <img
+                src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
+                alt={video.title || "Video Thumbnail"}
+                className={cn(
+                  "h-full w-full object-cover object-center filter transition",
+                  video.blurThumbnail ? "blur-[6px]" : ""
+                )}
+              />
+            </Link>
+          )}
           {/* Gradient overlay for better badge visibility */}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10"
@@ -193,6 +208,9 @@ export default function VideoCard({
             >
               {video.title || "Untitled Video"}
             </h3>
+            <p className="text-sm text-white/70">
+              {video.channel_title || "Unknown Channel"}
+            </p>
             <p
               className={`text-sm text-white overflow-hidden ${
                 showFullDescription ? "" : "line-clamp-3"
@@ -263,7 +281,7 @@ export default function VideoCard({
       tabIndex={0}
       aria-selected={isSelected}
     >
-      <div className="relative">
+      <div className="relative overflow-clip">
         {/* Selection Checkbox */}
         {isSelectionMode && isSelected && (
           <div
@@ -279,18 +297,31 @@ export default function VideoCard({
             {isSelected && <Check strokeWidth={4} size={14} />}
           </div>
         )}
-        <Link
-          href={`/explore?videoId=${video.id}`}
-          prefetch={false}
-          scroll={true}
-          tabIndex={isSelectionMode ? -1 : 0}
-        >
+        {isSelectionMode ? (
           <img
             src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
             alt={video.title || "Video Thumbnail"}
-            className="w-full h-48 object-cover"
+            className={cn(
+              "w-full h-48 object-cover filter transition",
+              video.blurThumbnail ? "blur-[6px]" : ""
+            )}
           />
-        </Link>
+        ) : (
+          <Link
+            href={`/explore?videoId=${video.id}`}
+            prefetch={false}
+            scroll={true}
+          >
+            <img
+              src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
+              alt={video.title || "Video Thumbnail"}
+              className={cn(
+                "w-full h-48 object-cover filter transition",
+                video.blurThumbnail ? "blur-[6px]" : ""
+              )}
+            />
+          </Link>
+        )}
         {/* Gradient overlay for better badge visibility */}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10"
@@ -327,7 +358,10 @@ export default function VideoCard({
           >
             {video.title || "Untitled Video"}
           </h3>
-          {/* <p
+          <p className="text-sm text-muted-foreground">
+            {video.channel_title || "Unknown Channel"}
+          </p>
+          {/* <p>
             className={`text-sm text-muted-foreground overflow-hidden ${
               showFullDescription ? "" : "line-clamp-3"
             }`}

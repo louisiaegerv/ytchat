@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, TextSearch, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input"; // Import Input component
 import { models } from "@/utils/openrouter";
 
 import { useVideoContext } from "@/components/VideoContext";
@@ -30,6 +31,61 @@ export function VideoInsightsPanel() {
   const parsedTranscript = parseTranscript(transcript || []);
   const rawTabRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // State for search functionality
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<
+    { entryIndex: number; startIndex: number; endIndex: number }[]
+  >([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  // Function to handle search
+  const handleSearch = () => {
+    if (!searchQuery) {
+      setSearchResults([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+
+    const results: {
+      entryIndex: number;
+      startIndex: number;
+      endIndex: number;
+    }[] = [];
+    parsedTranscript.forEach((entry, entryIndex) => {
+      const text = entry.text.toLowerCase();
+      const query = searchQuery.toLowerCase();
+      let startIndex = -1;
+      while ((startIndex = text.indexOf(query, startIndex + 1)) !== -1) {
+        results.push({
+          entryIndex,
+          startIndex,
+          endIndex: startIndex + query.length,
+        });
+      }
+    });
+
+    setSearchResults(results);
+    setCurrentMatchIndex(results.length > 0 ? 0 : -1); // Reset to first match or -1 if no results
+  };
+
+  // Function to navigate to the next search result
+  const handleNextMatch = () => {
+    if (searchResults.length > 0) {
+      setCurrentMatchIndex((prevIndex) =>
+        prevIndex < searchResults.length - 1 ? prevIndex + 1 : 0
+      );
+    }
+  };
+
+  // Function to clear search
+  const handleClearSearch = () => {
+    setIsSearching(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setCurrentMatchIndex(0);
+  };
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -138,34 +194,85 @@ export function VideoInsightsPanel() {
                 <TranscriptText
                   entries={parsedTranscript}
                   videoId={youtubeId || ""}
+                  searchQuery={searchQuery}
+                  searchResults={searchResults}
+                  currentMatchIndex={currentMatchIndex}
                 />
               </TabsContent>
-              <Button
-                onClick={() => {
-                  const text = parsedTranscript
-                    .map((entry) => entry.text)
-                    .join("\n");
-                  navigator.clipboard.writeText(text);
-                  setCopiedTranscript(true);
-                  setTimeout(() => setCopiedTranscript(false), 2000);
-                }}
-                variant="outline"
-                className="w-full"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  {copiedTranscript ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      <span>Copy Transcript</span>
-                    </>
-                  )}
-                </div>
-              </Button>
+              <div className={`flex gap-2 ${isSearching ? "flex-col" : ""}`}>
+                {isSearching ? (
+                  <div className="flex items-center w-full border rounded-md bg-background pr-2">
+                    <Input
+                      type="text"
+                      placeholder="Search transcript..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          handleSearch();
+                        }
+                      }}
+                      className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleNextMatch}
+                      className="h-auto w-auto"
+                      disabled={!searchQuery}
+                    >
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleClearSearch}
+                          className="h-auto w-auto"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <TextSearch className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setIsSearching(true)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <TextSearch className="h-4 w-4" />
+                      <span>Search Transcript</span>
+                    </div>
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    const text = parsedTranscript
+                      .map((entry) => entry.text)
+                      .join("\n");
+                    navigator.clipboard.writeText(text);
+                    setCopiedTranscript(true);
+                    setTimeout(() => setCopiedTranscript(false), 2000);
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    {copiedTranscript ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copy Transcript</span>
+                      </>
+                    )}
+                  </div>
+                </Button>
+              </div>
             </>
           )}
 

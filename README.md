@@ -28,7 +28,7 @@ Leverage AI to uncover themes, generate meta-summaries, and gain deep insights f
 
 - **Multiple AI Models**:
   - Llama 4 Scout (OpenRouter)
-  - Gemini 2.0 Flash
+  - Gemini 2.5 Flash
   - Optimus Alpha
 
 ---

@@ -138,6 +138,19 @@ const data = {
   projects: [],
 };
 
+// Export a lightweight copy of the sidebar data (titles + urls only) for reuse (e.g., breadcrumbs).
+// This avoids importing icon components or React elements in consumers.
+export const __sidebarData__ = {
+  navMain: data.navMain.map((item) => ({
+    title: item.title,
+    url: item.url,
+    items: item.items?.map((sub) => ({
+      title: sub.title,
+      url: sub.url,
+    })),
+  })),
+};
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>

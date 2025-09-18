@@ -7,7 +7,8 @@ import { VideoInsightsPanel } from "@/components/video-insights-panel";
 import { VideoProvider, useVideoContext } from "@/components/VideoContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/utils/supabase/client"; // Added import
+import { createClient } from "@/utils/supabase/client";
+import { useGlobalData } from "@/components/GlobalDataContext";
 
 export interface TranscriptEntry {
   start: number;
@@ -23,6 +24,7 @@ function ExploreTranscriptPage() {
     setVideoUuid,
     setAiSummary,
   } = useVideoContext();
+  const { existingTags, setExistingTags } = useGlobalData();
 
   const searchParams = useSearchParams();
   const videoIdParam = searchParams.get("videoId");
@@ -39,7 +41,7 @@ function ExploreTranscriptPage() {
       setIsLoading(true);
       setError("");
       try {
-        const supabase = createClient(); // Use createClient here
+        const supabase = createClient();
         // Get video metadata
         const { data: videoData, error: videoError } = await supabase
           .from("videos")
@@ -100,6 +102,25 @@ function ExploreTranscriptPage() {
     }
   }, [videoIdParam]);
 
+  // Fetch all existing tags once when the component mounts
+  useEffect(() => {
+    const fetchExistingTags = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.from("tags").select("name");
+      if (error) {
+        console.error("Error fetching existing tags:", error);
+        return;
+      }
+      const tagNames = new Set(data.map((tag) => tag.name));
+      setExistingTags(tagNames);
+    };
+
+    if (existingTags.size === 0) {
+      // Only fetch if the set is empty (first load)
+      fetchExistingTags();
+    }
+  }, [setExistingTags, existingTags.size]);
+
   // Helper functions
   const normalizeYouTubeUrl = (url: string): string | null => {
     try {
@@ -112,7 +133,9 @@ function ExploreTranscriptPage() {
         parsed.hostname === "youtube.com"
       ) {
         if (parsed.pathname === "/watch") {
-          videoId = parsed.searchParams.get("v");
+          videoId = parsed.searchParams.get("v") ?? null;
+        } else if (parsed.pathname.startsWith("/live/")) {
+          videoId = parsed.pathname.split("/").pop() ?? null;
         }
       }
       if (!videoId) return null;
@@ -133,7 +156,9 @@ function ExploreTranscriptPage() {
         parsed.hostname === "youtube.com"
       ) {
         if (parsed.pathname === "/watch") {
-          return parsed.searchParams.get("v");
+          return parsed.searchParams.get("v") ?? null;
+        } else if (parsed.pathname.startsWith("/live/")) {
+          return parsed.pathname.split("/").pop() ?? null;
         }
       }
       return null;
@@ -291,12 +316,40 @@ function ExploreTranscriptPage() {
 
           // Upsert tags and video_tags
           if (meta?.tags && Array.isArray(meta.tags)) {
+            const newTagsToUpsert = [];
+            for (const tagName of meta.tags) {
+              if (!existingTags.has(tagName)) {
+                newTagsToUpsert.push({ name: tagName });
+              }
+            }
+
+            if (newTagsToUpsert.length > 0) {
+              const { data: upsertedTags, error: upsertTagsError } =
+                await supabase
+                  .from("tags")
+                  .upsert(newTagsToUpsert, { onConflict: "name" })
+                  .select("id, name");
+
+              if (upsertTagsError) {
+                console.error("Error upserting new tags:", upsertTagsError);
+              } else if (upsertedTags) {
+                // Update the global existingTags set with newly upserted tags
+                setExistingTags((prevTags) => {
+                  const newSet = new Set(prevTags);
+                  upsertedTags.forEach((tag) => newSet.add(tag.name));
+                  return newSet;
+                });
+              }
+            }
+
+            // Now upsert video_tags for all tags (new and existing)
             for (const tagName of meta.tags) {
               const { data: tag } = await supabase
                 .from("tags")
-                .upsert([{ name: tagName }], { onConflict: "name" })
                 .select("id")
+                .eq("name", tagName)
                 .single();
+
               if (tag && tag.id) {
                 await supabase
                   .from("video_tags")

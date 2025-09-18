@@ -82,7 +82,18 @@ export function VideoInfoPanel({
         {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
         {youtubeId && (
           <div className="mt-4">
-            <img
+            {/* Replaced thumbnail img with video embed iframe */}
+            <div className="relative w-full aspect-video rounded-md overflow-hidden shadow-sm">
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="absolute top-0 left-0 w-full h-full"
+              ></iframe>
+            </div>
+            {/* <img
               src={
                 videoMeta?.youtube_thumbnail ||
                 `https://img.youtube.com/vi/${youtubeId}/0.jpg`
@@ -90,7 +101,7 @@ export function VideoInfoPanel({
               alt="YouTube Video Thumbnail"
               className="w-full rounded-md shadow-sm"
               referrerPolicy="no-referrer"
-            />
+            /> */}
             {videoMeta && (
               <div className="mt-2 space-y-1">
                 <h3 className="font-semibold text-lg">{videoMeta.title}</h3>
