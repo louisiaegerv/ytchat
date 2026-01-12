@@ -5,7 +5,7 @@ import { useVideoContext } from "@/components/VideoContext";
 import type { TranscriptEntry } from "@/utils/transcriptUtils";
 import Markdown from "markdown-to-jsx";
 import { useEffect } from "react";
-import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Maximize2 } from "lucide-react";
 
@@ -51,7 +51,7 @@ export function AISummaryPanel({
             <DialogContent
               className="max-h-[80vh] w-full max-w-5xl overflow-y-auto"
               style={{ scrollbarWidth: "thin" }}
-            >
+            ><DialogHeader><DialogTitle></DialogTitle></DialogHeader>
               <div className="prose dark:prose-invert max-w-none">
                 <Markdown>{aiSummary}</Markdown>
               </div>

@@ -5,6 +5,26 @@ export interface ModelOption {
 
 export const models: ModelOption[] = [
   {
+    id: "z-ai/glm-4.7",
+    name: "GLM 4.7 (Dec '25)",
+  },
+  {
+    id: "xiaomi/mimo-v2-flash:free",
+    name: "Mimo v2 Flash Free",
+  },
+  {
+    id: "xiaomi/mimo-v2-flash",
+    name: "Mimo v2 Flash",
+  },
+  {
+    id: "x-ai/grok-4.1-fast",
+    name: "x-ai/grok-4.1-fast",
+  },
+  {
+    id: "minimax/minimax-m2.1",
+    name: "Minimax M2.1 (Dec '25)",
+  },
+  {
     id: "qwen/qwen3-next-80b-a3b-thinking",
     name: "Qwen 3 A3B Thinking",
   },
@@ -13,70 +33,19 @@ export const models: ModelOption[] = [
     name: "Qwen 3 A3B Instruct",
   },
   {
-    id: "nvidia/nemotron-nano-9b-v2:free",
-    name: "Nemotron Nano 9b V2 (Free)",
-  },
-  {
-    id: "openrouter/sonoma-dusk-alpha",
-    name: "Sonoma Dusk Alpha Instruct (Free Cloaked)",
-  },
-  {
-    id: "openrouter/openrouter/sonoma-sky-alpha",
-    name: "Sonoma Sky Alpha - Reasoning (Free Cloaked)",
-  },
-  {
     id: "moonshotai/kimi-k2-0905",
     name: "Kimi K2 0905",
-  },
-  {
-    id: "google/gemini-2.5-flash-lite-preview-06-17",
-    name: "Gemini 2.5 Flash Lite Preview 6-17",
-  },
-  {
-    id: "google/gemini-2.5-flash-preview",
-    name: "Gemini 2.5 Flash",
-  },
-  {
-    id: "google/gemini-2.0-flash-001",
-    name: "Gemini 2.0 Flash",
-  },
-  {
-    id: "google/gemini-2.0-flash-exp:free",
-    name: "Gemini 2.0 Flash Free",
-  },
-  {
-    id: "google/gemini-2.5-pro-exp-03-25",
-    name: "Gemini 2.5 Pro Free",
-  },
-  {
-    id: "openai/gpt-4.1-mini",
-    name: "GPT 4.1 Mini",
-  },
-  {
-    id: "openai/gpt-4.1-nano",
-    name: "GPT 4.1 Nano",
-  },
-  {
-    id: "meta-llama/llama-4-scout",
-    name: "Llama 4 Scout",
   },
 ];
 
 export type OpenRouterModel =
+  | "z-ai/glm-4.7"
+  | "xiaomi/mimo-v2-flash:free"
+  | "xiaomi/mimo-v2-flash"
+  | "minimax/minimax-m2.1"
   | "qwen/qwen3-next-80b-a3b-thinking"
   | "qwen/qwen3-next-80b-a3b-instruct"
-  | "nvidia/nemotron-nano-9b-v2:free"
-  | "openrouter/sonoma-dusk-alpha"
-  | "openrouter/openrouter/sonoma-sky-alpha"
-  | "moonshotai/kimi-k2-0905"
-  | "google/gemini-2.5-flash-lite-preview-06-17"
-  | "google/gemini-2.5-flash-preview"
-  | "google/gemini-2.0-flash-001"
-  | "google/gemini-2.0-flash-exp:free"
-  | "google/gemini-2.5-pro-exp-03-25"
-  | "openai/gpt-4.1-mini"
-  | "openai/gpt-4.1-nano"
-  | "meta-llama/llama-4-scout";
+  | "moonshotai/kimi-k2-0905";
 
 export async function openRouterChat(
   model: OpenRouterModel,
