@@ -5,6 +5,10 @@ export interface ModelOption {
 
 export const models: ModelOption[] = [
   {
+    id: "google/gemini-2.5-flash-lite-preview-09-2025",
+    name: "Gemini Flash Lite Preview 09-2025",
+  },
+  {
     id: "z-ai/glm-4.7",
     name: "GLM 4.7 (Dec '25)",
   },
@@ -39,6 +43,7 @@ export const models: ModelOption[] = [
 ];
 
 export type OpenRouterModel =
+  | "google/gemini-2.5-flash-lite-preview-09-2025"
   | "z-ai/glm-4.7"
   | "xiaomi/mimo-v2-flash:free"
   | "xiaomi/mimo-v2-flash"
