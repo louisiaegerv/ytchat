@@ -3,12 +3,13 @@
 import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import type { Video, Group, VideoGroup, VideoWithFlags } from "@/types/library";
+import type { Video, VideoWithFlags, Collection } from "@/types/library";
 import LoadingSkeleton from "@/components/library/LoadingSkeleton";
 import ActiveFiltersBar from "@/components/library/ActiveFiltersBar";
 import LibraryControls from "@/components/library/LibraryControls";
 import VideoList from "@/components/library/VideoList";
 import BulkActionBar from "@/components/library/BulkActionBar";
+import CollectionManager from "@/components/library/CollectionManager";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import { useVideoQuery } from "@/hooks/useVideoQuery";
 import { useItemSelection } from "@/components/library/hooks/useItemSelection";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const PAGE_SIZE = 12;
 
@@ -42,7 +44,7 @@ export default function LibraryPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [allGroups, setAllGroups] = useState<Group[]>([]);
+  const [allGroups, setAllGroups] = useState<Collection[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [videoGroupLinks, setVideoGroupLinks] = useState<VideoGroup[]>([]);
   const [allTagObjects, setAllTagObjects] = useState<
@@ -69,6 +71,10 @@ export default function LibraryPage() {
   // Fetch user and groups/tags on mount
   useEffect(() => {
     const fetchUserAndMeta = async () => {
+      console.log(
+        "🔍 [LibraryPage] useEffect triggered - fetchUserAndMeta called",
+      );
+      console.log("🔍 [LibraryPage] supabase dependency changed:", supabase);
       setLoading(true);
       setError(null);
       const {
@@ -78,7 +84,10 @@ export default function LibraryPage() {
         redirect("/login");
         return;
       }
+      console.log("🔍 [LibraryPage] About to set userId:", user.id);
+      console.log("🔍 [LibraryPage] Current userId before setUserId:", userId);
       setUserId(user.id);
+      console.log("🔍 [LibraryPage] userId set to:", user.id);
 
       try {
         // Fetch all groups, video_groups, tags, and video_tags for filter UI
@@ -88,15 +97,18 @@ export default function LibraryPage() {
           { data: tagData },
           { data: videoTagData },
         ] = await Promise.all([
-          supabase.from("groups").select("id, name").eq("user_id", user.id),
-          supabase.from("video_groups").select("video_id, group_id"),
+          supabase
+            .from("collections")
+            .select("id, name")
+            .eq("user_id", user.id),
+          supabase.from("video_collections").select("video_id, collection_id"),
           supabase.from("tags").select("id, name"),
           supabase.from("video_tags").select("video_id, tag_id"),
         ]);
         setAllGroups(
           (groupData || []).sort((a, b) =>
-            (a.name || "").localeCompare(b.name || "")
-          )
+            (a.name || "").localeCompare(b.name || ""),
+          ),
         );
         setVideoGroupLinks(linkData || []);
         setAllTagObjects(tagData || []);
@@ -149,7 +161,7 @@ export default function LibraryPage() {
             .filter((vt) => vt.video_id === video.id)
             .forEach((vt) => {
               const tagName = allTagObjects.find(
-                (t) => t.id === vt.tag_id
+                (t) => t.id === vt.tag_id,
               )?.name;
               if (tagName) {
                 if (!videoTagsMap[video.id]) videoTagsMap[video.id] = [];
@@ -171,10 +183,10 @@ export default function LibraryPage() {
         ]);
 
         const summaryVideoIds = new Set(
-          (summariesRes.data || []).map((row) => row.video_id)
+          (summariesRes.data || []).map((row) => row.video_id),
         );
         const chatVideoIds = new Set(
-          (chatsRes.data || []).map((row) => row.video_id)
+          (chatsRes.data || []).map((row) => row.video_id),
         );
 
         // Map each video to include tags, hasSummary, hasChats, and new fields with defaults
@@ -254,8 +266,8 @@ export default function LibraryPage() {
         });
         setAllTags((prev) =>
           Array.from(
-            new Set(Array.from(prev).concat(Array.from(uniqueTags)))
-          ).sort()
+            new Set(Array.from(prev).concat(Array.from(uniqueTags))),
+          ).sort(),
         );
         // If less than PAGE_SIZE, no more data
         setHasMore((data?.length || 0) === PAGE_SIZE);
@@ -267,15 +279,18 @@ export default function LibraryPage() {
         setIsFetchingNext(false);
       }
     },
-    [userId, buildVideoQuery]
+    [userId, buildVideoQuery],
   );
 
   // Initial and filter-triggered fetch
   useEffect(() => {
+    console.log("🔍 [LibraryPage] fetchVideos useEffect triggered");
+    console.log("🔍 [LibraryPage] userId:", userId);
     if (!userId) return;
     setVideos([]);
     setPage(0);
     setHasMore(true);
+    console.log("🔍 [LibraryPage] Calling fetchVideos(0, true)");
     fetchVideos(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -300,14 +315,14 @@ export default function LibraryPage() {
   // Handlers for tag/group selection
   const handleTagSelect = (tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   };
   const handleGroupSelect = (groupId: string) => {
     setSelectedGroups((prev) =>
       prev.includes(groupId)
         ? prev.filter((id) => id !== groupId)
-        : [...prev, groupId]
+        : [...prev, groupId],
     );
   };
 
@@ -389,8 +404,8 @@ export default function LibraryPage() {
     // Optimistic update
     setVideos((prev) =>
       prev.map((v) =>
-        selectedSet.has(v.id) ? { ...v, blurThumbnail: target } : v
-      )
+        selectedSet.has(v.id) ? { ...v, blurThumbnail: target } : v,
+      ),
     );
 
     // Persist
@@ -404,8 +419,8 @@ export default function LibraryPage() {
         prev.map((v) =>
           selectedSet.has(v.id)
             ? { ...v, blurThumbnail: prevMap.get(v.id) ?? v.blurThumbnail }
-            : v
-        )
+            : v,
+        ),
       );
     }
   };
@@ -415,12 +430,9 @@ export default function LibraryPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Analyzed Videos Hub
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
           <p className="text-sm text-muted-foreground">
-            View transcripts, AI-generated summaries, and chat conversations
-            from your previous sessions.
+            View past transcripts, AI summaries, and chats.
           </p>
         </div>
         {/* Controls: Search, Filters, and Selection Toggle */}
@@ -445,95 +457,115 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Content Section */}
-      <div>
-        {/* Active Filters Display */}
-        <ActiveFiltersBar
-          selectedTags={selectedTags}
-          selectedGroups={selectedGroups}
-          getGroupName={getGroupName}
-          onTagRemove={handleTagSelect}
-          onGroupRemove={handleGroupSelect}
-          onClearAll={handleClearAllFilters}
-        />
+      {/* Content Section with Tabs */}
+      <Tabs defaultValue="all-videos" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="all-videos">All Videos</TabsTrigger>
+          <TabsTrigger value="groups">Collections</TabsTrigger>
+        </TabsList>
 
-        {/* Bulk Action Bar */}
-        {isSelectionMode && (
-          <BulkActionBar
-            selectedCount={selectedItems.length}
-            onClearSelection={clearSelection}
-            onDelete={handleBulkDelete}
-            onTag={handleBulkTag}
-            onAnalyze={handleBulkAnalyze}
-            onToggleBlur={handleToggleBlur}
+        {/* All Videos Tab */}
+        <TabsContent value="all-videos" className="space-y-4">
+          {/* Active Filters Display */}
+          <ActiveFiltersBar
+            selectedTags={selectedTags}
+            selectedGroups={selectedGroups}
+            getGroupName={getGroupName}
+            onTagRemove={handleTagSelect}
+            onGroupRemove={handleGroupSelect}
+            onClearAll={handleClearAllFilters}
           />
-        )}
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete selected videos?</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete the following videos? This
-                action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <ul className="max-h-40 overflow-y-auto mb-2 pl-4 list-disc">
-              {videos
-                .filter((v) => selectedItems.includes(v.id))
-                .map((v) => (
-                  <li key={v.id} className="text-sm">
-                    {v.title || v.id}
-                  </li>
-                ))}
-            </ul>
-            {deleteError && <p className="text-red-500">{deleteError}</p>}
-            <DialogFooter>
-              <button
-                className="px-4 py-2 rounded bg-muted text-foreground"
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 rounded bg-destructive text-destructive-foreground"
-                onClick={confirmBulkDelete}
-                disabled={isDeleting}
-                type="button"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          {/* Bulk Action Bar */}
+          {isSelectionMode && (
+            <>
+              {console.log(
+                "🔍 [LibraryPage] Rendering BulkActionBar with selectedItems:",
+                selectedItems,
+              )}
+              <BulkActionBar
+                selectedCount={selectedItems.length}
+                selectedVideoIds={selectedItems}
+                onClearSelection={clearSelection}
+                onDelete={handleBulkDelete}
+                onTag={handleBulkTag}
+                onAnalyze={handleBulkAnalyze}
+                onToggleBlur={handleToggleBlur}
+              />
+            </>
+          )}
 
-        {/* Main Content Area */}
-        {loading && videos.length === 0 ? (
-          <LoadingSkeleton viewMode={viewMode} />
-        ) : error ? (
-          <p className="text-red-500">{error}</p>
-        ) : videos.length > 0 ? (
-          <VideoList
-            videos={videos}
-            hasMore={hasMore}
-            fetchNext={fetchNext}
-            viewMode={viewMode}
-            isSelectionMode={isSelectionMode}
-            selectedItems={selectedItems}
-            onSelect={handleItemSelect}
-            setIsSelectionMode={setIsSelectionMode}
-          />
-        ) : (
-          <p>
-            {searchQuery
-              ? "No videos match your search."
-              : "You haven't saved any videos yet."}
-          </p>
-        )}
-      </div>
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete selected videos?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete the following videos? This
+                  action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <ul className="max-h-40 overflow-y-auto mb-2 pl-4 list-disc">
+                {videos
+                  .filter((v) => selectedItems.includes(v.id))
+                  .map((v) => (
+                    <li key={v.id} className="text-sm">
+                      {v.title || v.id}
+                    </li>
+                  ))}
+              </ul>
+              {deleteError && <p className="text-red-500">{deleteError}</p>}
+              <DialogFooter>
+                <button
+                  className="px-4 py-2 rounded bg-muted text-foreground"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeleting}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 rounded bg-destructive text-destructive-foreground"
+                  onClick={confirmBulkDelete}
+                  disabled={isDeleting}
+                  type="button"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Main Content Area */}
+          {loading && videos.length === 0 ? (
+            <LoadingSkeleton viewMode={viewMode} />
+          ) : error ? (
+            <p className="text-red-500">{error}</p>
+          ) : videos.length > 0 ? (
+            <VideoList
+              videos={videos}
+              hasMore={hasMore}
+              fetchNext={fetchNext}
+              viewMode={viewMode}
+              isSelectionMode={isSelectionMode}
+              selectedItems={selectedItems}
+              onSelect={handleItemSelect}
+              setIsSelectionMode={setIsSelectionMode}
+            />
+          ) : (
+            <p>
+              {searchQuery
+                ? "No videos match your search."
+                : "You haven't saved any videos yet."}
+            </p>
+          )}
+        </TabsContent>
+
+        {/* Collections Tab */}
+        <TabsContent value="groups" className="space-y-4">
+          {userId && <CollectionManager userId={userId} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

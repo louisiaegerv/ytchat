@@ -119,7 +119,7 @@ export default function VideoCard({
           isSelectionMode && isSelected
             ? "ring-2 ring-sidebar-primary ring-offset-4 ring-offset-background"
             : "",
-          isSelectionMode ? "cursor-pointer" : ""
+          isSelectionMode ? "cursor-pointer" : "",
         )}
         onMouseDown={handleMouseDown}
         onClick={handleCardClick}
@@ -132,7 +132,7 @@ export default function VideoCard({
           {isSelectionMode && isSelected && (
             <div
               className={cn(
-                "absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center z-30 transition-colors bg-sidebar-primary border-sidebar-primary text-primary "
+                "absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center z-30 transition-colors bg-sidebar-primary border-sidebar-primary text-primary ",
               )}
               onClick={handleCheckboxClick}
               tabIndex={-1}
@@ -149,21 +149,17 @@ export default function VideoCard({
               alt={video.title || "Video Thumbnail"}
               className={cn(
                 "h-full w-full object-cover object-center filter transition",
-                video.blurThumbnail ? "blur-[6px]" : ""
+                video.blurThumbnail ? "blur-[6px]" : "",
               )}
             />
           ) : (
-            <Link
-              href={`/explore?videoId=${video.id}`}
-              prefetch={false}
-              scroll={true}
-            >
+            <Link href={`/videos/${video.id}`} prefetch={false} scroll={true}>
               <img
                 src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
                 alt={video.title || "Video Thumbnail"}
                 className={cn(
                   "h-full w-full object-cover object-center filter transition",
-                  video.blurThumbnail ? "blur-[6px]" : ""
+                  video.blurThumbnail ? "blur-[6px]" : "",
                 )}
               />
             </Link>
@@ -274,7 +270,7 @@ export default function VideoCard({
         isSelectionMode && isSelected
           ? "ring-2 ring-sidebar-primary ring-offset-4 ring-offset-background"
           : "",
-        isSelectionMode ? "cursor-pointer" : ""
+        isSelectionMode ? "cursor-pointer" : "",
       )}
       onMouseDown={handleMouseDown}
       onClick={handleCardClick}
@@ -286,7 +282,7 @@ export default function VideoCard({
         {isSelectionMode && isSelected && (
           <div
             className={cn(
-              "absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center z-30 transition-colors bg-sidebar-primary border-sidebar-primary text-primary "
+              "absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center z-30 transition-colors bg-sidebar-primary border-sidebar-primary text-primary ",
             )}
             onClick={handleCheckboxClick}
             tabIndex={-1}
@@ -303,21 +299,17 @@ export default function VideoCard({
             alt={video.title || "Video Thumbnail"}
             className={cn(
               "w-full h-48 object-cover filter transition",
-              video.blurThumbnail ? "blur-[6px]" : ""
+              video.blurThumbnail ? "blur-[6px]" : "",
             )}
           />
         ) : (
-          <Link
-            href={`/explore?videoId=${video.id}`}
-            prefetch={false}
-            scroll={true}
-          >
+          <Link href={`/videos/${video.id}`} prefetch={false} scroll={true}>
             <img
               src={`https://img.youtube.com/vi/${video.youtube_id}/0.jpg`}
               alt={video.title || "Video Thumbnail"}
               className={cn(
                 "w-full h-48 object-cover filter transition",
-                video.blurThumbnail ? "blur-[6px]" : ""
+                video.blurThumbnail ? "blur-[6px]" : "",
               )}
             />
           </Link>

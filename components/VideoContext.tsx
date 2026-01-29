@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import type { TranscriptEntry } from "@/app/explore/page";
+import type { TranscriptEntry } from "@/app/capture/page";
 
 interface VideoContextType {
   videoUuid: string | null;

@@ -21,7 +21,7 @@ export function VideoInsightsPanel() {
     useVideoContext();
 
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [activeTab, setActiveTab] = useState("raw");
+  const [activeTab, setActiveTab] = useState("ai");
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [model, setModel] = useState<string>(models[0].id);
@@ -29,7 +29,7 @@ export function VideoInsightsPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const parsedTranscript = parseTranscript(transcript || []);
-  const rawTabRef = useRef<HTMLButtonElement>(null);
+  const aiTabRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // State for search functionality
@@ -74,7 +74,7 @@ export function VideoInsightsPanel() {
   const handleNextMatch = () => {
     if (searchResults.length > 0) {
       setCurrentMatchIndex((prevIndex) =>
-        prevIndex < searchResults.length - 1 ? prevIndex + 1 : 0
+        prevIndex < searchResults.length - 1 ? prevIndex + 1 : 0,
       );
     }
   };
@@ -99,7 +99,7 @@ export function VideoInsightsPanel() {
         input,
         messages,
         model,
-        parsedTranscript
+        parsedTranscript,
       );
 
       const assistantMessage: ChatMessage = {
@@ -151,9 +151,9 @@ export function VideoInsightsPanel() {
 
   useEffect(() => {
     if (transcript) {
-      setActiveTab("raw");
+      setActiveTab("ai");
       setTimeout(() => {
-        rawTabRef.current?.scrollIntoView({
+        aiTabRef.current?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
@@ -340,10 +340,10 @@ export function VideoInsightsPanel() {
         </div>
 
         <TabsList className="w-full">
-          <TabsTrigger ref={rawTabRef} className="flex-1" value="raw">
+          <TabsTrigger className="flex-1" value="raw">
             Raw Transcript
           </TabsTrigger>
-          <TabsTrigger className="flex-1" value="ai">
+          <TabsTrigger ref={aiTabRef} className="flex-1" value="ai">
             AI Summary
           </TabsTrigger>
           <TabsTrigger className="flex-1" value="chat">
