@@ -3,13 +3,13 @@
 import { createContext, useContext, ReactNode } from "react";
 import { usePinnedCollections as usePinnedCollectionsHook } from "@/hooks/usePinnedCollections";
 import type {
-  PinnedCollectionWithGroup,
+  PinnedCollectionDetails,
   CollectionWithLastAccessed,
 } from "@/types/library";
 
 interface PinnedCollectionsContextType {
   userId: string | null;
-  pinnedCollections: PinnedCollectionWithGroup[];
+  pinnedCollections: PinnedCollectionDetails[];
   recentCollections: CollectionWithLastAccessed[];
   loading: boolean;
   error: string | null;

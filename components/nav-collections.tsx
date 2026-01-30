@@ -45,12 +45,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type {
-  PinnedCollectionWithGroup,
+  PinnedCollectionDetails,
   CollectionWithLastAccessed,
 } from "@/types/library";
 
 interface NavCollectionsProps {
-  pinnedCollections: PinnedCollectionWithGroup[];
+  pinnedCollections: PinnedCollectionDetails[];
   recentCollections: CollectionWithLastAccessed[];
   onPin: (collectionId: string) => void;
   onUnpin: (collectionId: string) => void;
@@ -64,7 +64,7 @@ function SortablePinnedCollection({
   onUnpin,
   syncingCollectionId,
 }: {
-  item: PinnedCollectionWithGroup;
+  item: PinnedCollectionDetails;
   onUnpin: (collectionId: string) => void;
   syncingCollectionId?: string | null;
 }) {

@@ -15,14 +15,14 @@ import {
   getPinLimit,
 } from "@/utils/supabase/pinned-collections";
 import type {
-  PinnedCollectionWithGroup,
+  PinnedCollectionDetails,
   CollectionWithLastAccessed,
 } from "@/types/library";
 
 export function usePinnedCollections() {
   const [userId, setUserId] = useState<string | null>(null);
   const [pinnedCollections, setPinnedCollections] = useState<
-    PinnedCollectionWithGroup[]
+    PinnedCollectionDetails[]
   >([]);
   const [recentCollections, setRecentCollections] = useState<
     CollectionWithLastAccessed[]
@@ -128,7 +128,7 @@ export function usePinnedCollections() {
       const previousPinnedCollections = [...pinnedCollections];
 
       // Create optimistic pinned collection
-      const optimisticPinnedCollection: PinnedCollectionWithGroup = {
+      const optimisticPinnedCollection: PinnedCollectionDetails = {
         id: `optimistic-${Date.now()}`,
         user_id: userId,
         collection_id: collectionId,

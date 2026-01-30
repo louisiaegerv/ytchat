@@ -234,8 +234,7 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
           No collections yet
         </h3>
         <p className="text-sm text-muted-foreground mb-6 max-w-md">
-          Create collections to organize your videos into groups for easier
-          browsing.
+          Create collections to organize your videos for easier browsing.
         </p>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />

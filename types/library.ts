@@ -52,10 +52,16 @@ export type PinnedCollection = {
   created_at: string;
 };
 
-// Pinned collection with collection details (note: name kept for compatibility)
+// Pinned collection with collection details
 // Note: Supabase returns collections as an array, so we use Collection[] here
-export type PinnedCollectionWithGroup = PinnedCollection & {
+export type PinnedCollectionDetails = PinnedCollection & {
   collections: Collection[];
+};
+
+// Video collection link type (video_collections table)
+export type VideoCollection = {
+  video_id: string;
+  collection_id: string;
 };
 
 // Collection with last accessed timestamp

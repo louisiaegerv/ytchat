@@ -354,12 +354,13 @@ export async function addVideosToCollection(
   // Create video_collections records (upsert to handle duplicates)
   const rows = uniqueIds.map((videoId) => ({
     video_id: videoId,
-    group_id: collectionId,
+    collection_id: collectionId,
   }));
 
-  const { error } = await supabase
-    .from("video_collections")
-    .upsert(rows, { onConflict: "video_id,group_id", ignoreDuplicates: true });
+  const { error } = await supabase.from("video_collections").upsert(rows, {
+    onConflict: "video_id,collection_id",
+    ignoreDuplicates: true,
+  });
 
   if (error) {
     throw new Error(`Failed to add videos to collection: ${error.message}`);
@@ -408,7 +409,7 @@ export async function removeVideosFromCollection(
   const { error } = await supabase
     .from("video_collections")
     .delete()
-    .eq("group_id", collectionId)
+    .eq("collection_id", collectionId)
     .in("video_id", uniqueIds);
 
   if (error) {

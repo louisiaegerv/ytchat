@@ -3,22 +3,23 @@ import { X } from "lucide-react";
 
 interface ActiveFiltersBarProps {
   selectedTags: string[];
-  selectedGroups: string[];
-  getGroupName: (groupId: string) => string;
+  selectedCollections: string[];
+  getCollectionName: (collectionId: string) => string;
   onTagRemove: (tag: string) => void;
-  onGroupRemove: (groupId: string) => void;
+  onCollectionRemove: (collectionId: string) => void;
   onClearAll: () => void;
 }
 
 export default function ActiveFiltersBar({
   selectedTags,
-  selectedGroups,
-  getGroupName,
+  selectedCollections,
+  getCollectionName,
   onTagRemove,
-  onGroupRemove,
+  onCollectionRemove,
   onClearAll,
 }: ActiveFiltersBarProps) {
-  if (selectedTags.length === 0 && selectedGroups.length === 0) return null;
+  if (selectedTags.length === 0 && selectedCollections.length === 0)
+    return null;
 
   return (
     <div className="mb-6 flex items-center gap-2 flex-wrap border-b pb-4">
@@ -36,13 +37,13 @@ export default function ActiveFiltersBar({
           </button>
         </Badge>
       ))}
-      {selectedGroups.map((groupId) => (
-        <Badge key={`group-${groupId}`} variant="outline">
-          Group: {getGroupName(groupId)}
+      {selectedCollections.map((collectionId) => (
+        <Badge key={`collection-${collectionId}`} variant="outline">
+          Collection: {getCollectionName(collectionId)}
           <button
-            onClick={() => onGroupRemove(groupId)}
+            onClick={() => onCollectionRemove(collectionId)}
             className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            aria-label={`Remove group filter for ${getGroupName(groupId)}`}
+            aria-label={`Remove collection filter for ${getCollectionName(collectionId)}`}
             type="button"
           >
             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />

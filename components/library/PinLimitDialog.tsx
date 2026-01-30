@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Pin } from "lucide-react";
-import type { PinnedCollectionWithGroup } from "@/types/library";
+import type { PinnedCollectionDetails } from "@/types/library";
 
 interface PinLimitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pinnedCollections: PinnedCollectionWithGroup[];
+  pinnedCollections: PinnedCollectionDetails[];
   onReplace: (oldCollectionId: string, newCollectionId: string) => void;
   newCollectionId: string | null;
 }

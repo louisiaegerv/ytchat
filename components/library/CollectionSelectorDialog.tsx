@@ -47,7 +47,7 @@ export default function CollectionSelectorDialog({
         }
 
         const { data, error } = await supabase
-          .from("groups")
+          .from("collections")
           .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });

@@ -1,21 +1,21 @@
 import { useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import type { VideoGroup } from "@/types/library";
+import type { VideoCollection } from "@/types/library";
 
 const PAGE_SIZE = 12;
 
 interface UseVideoQueryParams {
   debouncedSearchQuery: string;
   selectedTags: string[];
-  selectedGroups: string[];
-  videoGroupLinks: VideoGroup[];
+  selectedCollections: string[];
+  videoCollectionLinks: VideoCollection[];
 }
 
 export function useVideoQuery({
   debouncedSearchQuery,
   selectedTags,
-  selectedGroups,
-  videoGroupLinks,
+  selectedCollections,
+  videoCollectionLinks,
 }: UseVideoQueryParams) {
   const supabase = createClient();
 
@@ -24,7 +24,7 @@ export function useVideoQuery({
       let baseQuery = supabase
         .from("videos")
         .select(
-          `id, title, youtube_url, youtube_id, created_at, channel_id, published_at,description,duration,view_count, like_count, comment_count, channels(title)`
+          `id, title, youtube_url, youtube_id, created_at, channel_id, published_at,description,duration,view_count, like_count, comment_count, channels(title)`,
         );
 
       let query;
@@ -36,7 +36,7 @@ export function useVideoQuery({
             p_search_query: debouncedSearchQuery,
           })
           .select(
-            `id, title, youtube_url, youtube_id, created_at, channel_id, published_at,description,duration,view_count, like_count, comment_count, channels(title)`
+            `id, title, youtube_url, youtube_id, created_at, channel_id, published_at,description,duration,view_count, like_count, comment_count, channels(title)`,
           );
       } else {
         query = baseQuery.eq("user_id", userId);
@@ -52,9 +52,9 @@ export function useVideoQuery({
     [
       debouncedSearchQuery,
       selectedTags,
-      selectedGroups,
-      videoGroupLinks,
+      selectedCollections,
+      videoCollectionLinks,
       supabase,
-    ]
+    ],
   );
 }

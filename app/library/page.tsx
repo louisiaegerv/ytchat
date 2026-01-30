@@ -3,7 +3,12 @@
 import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import type { Video, VideoWithFlags, Collection } from "@/types/library";
+import type {
+  Video,
+  VideoWithFlags,
+  Collection,
+  VideoCollection,
+} from "@/types/library";
 import LoadingSkeleton from "@/components/library/LoadingSkeleton";
 import ActiveFiltersBar from "@/components/library/ActiveFiltersBar";
 import LibraryControls from "@/components/library/LibraryControls";
@@ -44,9 +49,11 @@ export default function LibraryPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [allGroups, setAllGroups] = useState<Collection[]>([]);
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [videoGroupLinks, setVideoGroupLinks] = useState<VideoGroup[]>([]);
+  const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [videoCollectionLinks, setVideoCollectionLinks] = useState<
+    VideoCollection[]
+  >([]);
   const [allTagObjects, setAllTagObjects] = useState<
     { id: number; name: string }[]
   >([]);
@@ -68,7 +75,7 @@ export default function LibraryPage() {
     return () => clearTimeout(timerId);
   }, [searchQuery]);
 
-  // Fetch user and groups/tags on mount
+  // Fetch user and collections/tags on mount
   useEffect(() => {
     const fetchUserAndMeta = async () => {
       console.log(
@@ -90,27 +97,27 @@ export default function LibraryPage() {
       console.log("🔍 [LibraryPage] userId set to:", user.id);
 
       try {
-        // Fetch all groups, video_groups, tags, and video_tags for filter UI
+        // Fetch all collections, video_collections, tags, and video_tags for filter UI
         const [
-          { data: groupData },
+          { data: collectionData },
           { data: linkData },
           { data: tagData },
           { data: videoTagData },
         ] = await Promise.all([
           supabase
             .from("collections")
-            .select("id, name")
+            .select("id, name, description, user_id, created_at, updated_at")
             .eq("user_id", user.id),
           supabase.from("video_collections").select("video_id, collection_id"),
           supabase.from("tags").select("id, name"),
           supabase.from("video_tags").select("video_id, tag_id"),
         ]);
-        setAllGroups(
-          (groupData || []).sort((a, b) =>
+        setAllCollections(
+          (collectionData || []).sort((a, b) =>
             (a.name || "").localeCompare(b.name || ""),
           ),
         );
-        setVideoGroupLinks(linkData || []);
+        setVideoCollectionLinks(linkData || []);
         setAllTagObjects(tagData || []);
         setVideoTags(videoTagData || []);
       } catch (err: any) {
@@ -126,8 +133,8 @@ export default function LibraryPage() {
   const buildVideoQuery = useVideoQuery({
     debouncedSearchQuery,
     selectedTags,
-    selectedGroups,
-    videoGroupLinks,
+    selectedCollections,
+    videoCollectionLinks,
   });
 
   // Bulk selection hook
@@ -297,8 +304,8 @@ export default function LibraryPage() {
     userId,
     debouncedSearchQuery,
     selectedTags,
-    selectedGroups,
-    videoGroupLinks,
+    selectedCollections,
+    videoCollectionLinks,
   ]);
 
   // Infinite scroll fetch
@@ -312,29 +319,32 @@ export default function LibraryPage() {
     });
   };
 
-  // Handlers for tag/group selection
+  // Handlers for tag/collection selection
   const handleTagSelect = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   };
-  const handleGroupSelect = (groupId: string) => {
-    setSelectedGroups((prev) =>
-      prev.includes(groupId)
-        ? prev.filter((id) => id !== groupId)
-        : [...prev, groupId],
+  const handleCollectionSelect = (collectionId: string) => {
+    setSelectedCollections((prev) =>
+      prev.includes(collectionId)
+        ? prev.filter((id) => id !== collectionId)
+        : [...prev, collectionId],
     );
   };
 
-  // Helper to get group name by ID
-  const getGroupName = (groupId: string) => {
-    return allGroups.find((g) => g.id === groupId)?.name || "Unknown Group";
+  // Helper to get collection name by ID
+  const getCollectionName = (collectionId: string) => {
+    return (
+      allCollections.find((c) => c.id === collectionId)?.name ||
+      "Unknown Collection"
+    );
   };
 
   // Handler for clearing all filters
   const handleClearAllFilters = () => {
     setSelectedTags([]);
-    setSelectedGroups([]);
+    setSelectedCollections([]);
   };
 
   // Dialog state for delete confirmation
@@ -445,9 +455,9 @@ export default function LibraryPage() {
             allTags={allTags}
             selectedTags={selectedTags}
             onTagSelect={handleTagSelect}
-            allGroups={allGroups}
-            selectedGroups={selectedGroups}
-            onGroupSelect={handleGroupSelect}
+            allCollections={allCollections}
+            selectedCollections={selectedCollections}
+            onCollectionSelect={handleCollectionSelect}
           />
           <ToolbarButton
             icon={<CheckSquare size={16} />}
@@ -469,10 +479,10 @@ export default function LibraryPage() {
           {/* Active Filters Display */}
           <ActiveFiltersBar
             selectedTags={selectedTags}
-            selectedGroups={selectedGroups}
-            getGroupName={getGroupName}
+            selectedCollections={selectedCollections}
+            getCollectionName={getCollectionName}
             onTagRemove={handleTagSelect}
-            onGroupRemove={handleGroupSelect}
+            onCollectionRemove={handleCollectionSelect}
             onClearAll={handleClearAllFilters}
           />
 

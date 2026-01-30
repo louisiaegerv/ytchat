@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/client";
 import type {
-  PinnedCollectionWithGroup,
+  PinnedCollectionDetails,
   CollectionWithLastAccessed,
 } from "@/types/library";
 
@@ -13,7 +13,7 @@ const PIN_LIMIT = 6;
  */
 export async function fetchPinnedCollections(
   userId: string,
-): Promise<PinnedCollectionWithGroup[]> {
+): Promise<PinnedCollectionDetails[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("pinned_collections")
@@ -31,7 +31,7 @@ export async function fetchPinnedCollections(
     .order("position", { ascending: true });
 
   if (error) throw error;
-  return data as PinnedCollectionWithGroup[];
+  return data as PinnedCollectionDetails[];
 }
 
 /**
