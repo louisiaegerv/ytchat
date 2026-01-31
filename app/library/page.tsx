@@ -2,9 +2,8 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
-  Video,
   VideoWithFlags,
   Collection,
   VideoCollection,
@@ -24,48 +23,191 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import ToolbarButton from "@/components/library/ToolbarButton";
-import {
-  LayoutGrid,
-  ListIcon,
-  MousePointer,
-  CheckSquare,
-  CopyCheck,
-} from "lucide-react";
-import { useVideoQuery } from "@/hooks/useVideoQuery";
+import { CheckSquare } from "lucide-react";
 import { useItemSelection } from "@/components/library/hooks/useItemSelection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserId } from "@/hooks/queries/useUserQuery";
+import { useCollectionsQuery } from "@/hooks/queries/useCollectionsQuery";
+import { useVideoMutations } from "@/hooks/mutations/useVideoMutations";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { videosKeys } from "@/lib/queryKeys";
+import { queryConfig } from "@/lib/queryClient";
 
 const PAGE_SIZE = 12;
 
+/**
+ * Hook to fetch video metadata (tags, summaries, chats) for enriching video data
+ */
+function useVideoMetadata(userId: string | null) {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ["videoMetadata", userId],
+    queryFn: async () => {
+      if (!userId) return { tags: [], videoTags: [], links: [] };
+
+      const [{ data: tagsData }, { data: videoTagsData }, { data: linksData }] =
+        await Promise.all([
+          supabase.from("tags").select("id, name"),
+          supabase.from("video_tags").select("video_id, tag_id"),
+          supabase.from("video_collections").select("video_id, collection_id"),
+        ]);
+
+      return {
+        tags: tagsData || [],
+        videoTags: videoTagsData || [],
+        links: linksData || [],
+      };
+    },
+    enabled: !!userId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+/**
+ * Hook to fetch enhanced video data with tags, summaries, chats, and blur flags
+ */
+function useEnhancedVideos(
+  userId: string | null,
+  searchQuery: string,
+  selectedTags: string[],
+  selectedCollections: string[]
+) {
+  const supabase = useMemo(() => createClient(), []);
+  const { data: metadata } = useVideoMetadata(userId);
+
+  // Create a map for quick tag lookups
+  const tagMap = useMemo(() => {
+    if (!metadata?.tags) return new Map();
+    return new Map(metadata.tags.map((t) => [t.id, t.name]));
+  }, [metadata]);
+
+  return useInfiniteQuery({
+    queryKey: videosKeys.infinite({
+      userId: userId || "",
+      search: searchQuery,
+      tags: selectedTags,
+      collections: selectedCollections,
+    }),
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!userId) throw new Error("User ID required");
+
+      let query;
+
+      if (searchQuery) {
+        // Use RPC for search
+        query = supabase
+          .rpc("search_videos_by_title_or_channel", {
+            p_user_id: userId,
+            p_search_query: searchQuery,
+          })
+          .select(
+            `id, title, youtube_url, youtube_id, created_at, channel_id, published_at, description, duration, view_count, like_count, comment_count, channels(title)`
+          );
+      } else {
+        // Standard query
+        query = supabase
+          .from("videos")
+          .select(
+            `id, title, youtube_url, youtube_id, created_at, channel_id, published_at, description, duration, view_count, like_count, comment_count, channels(title)`
+          )
+          .eq("user_id", userId);
+      }
+
+      // Apply pagination
+      const start = pageParam * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+      query = query.order("created_at", { ascending: false }).range(start, end);
+
+      const { data: videosData, error } = await query;
+      if (error) throw error;
+
+      const videos = videosData || [];
+      const videoIds = videos.map((v: any) => v.id);
+
+      // Fetch summaries, chats, and blur flags in parallel
+      const [summariesRes, chatsRes, flagsRes] = await Promise.all([
+        supabase.from("summaries").select("video_id").in("video_id", videoIds),
+        supabase.from("chats").select("video_id").in("video_id", videoIds),
+        supabase
+          .from("user_video_flags")
+          .select("video_id, blur_thumbnail")
+          .eq("user_id", userId)
+          .in("video_id", videoIds),
+      ]);
+
+      const summaryIds = new Set((summariesRes.data || []).map((s) => s.video_id));
+      const chatIds = new Set((chatsRes.data || []).map((c) => c.video_id));
+      const blurMap = new Map(
+        (flagsRes.data || []).map((f) => [f.video_id, f.blur_thumbnail])
+      );
+
+      // Build video tags map
+      const videoTagsMap: Record<string, string[]> = {};
+      videos.forEach((video: any) => {
+        const videoTagEntries = (metadata?.videoTags || []).filter(
+          (vt) => vt.video_id === video.id
+        );
+        videoTagsMap[video.id] = videoTagEntries
+          .map((vt) => tagMap.get(vt.tag_id))
+          .filter(Boolean) as string[];
+      });
+
+      // Transform to VideoWithFlags
+      const videosWithFlags: VideoWithFlags[] = videos.map((video: any) => {
+        const channels = video.channels;
+        const channelTitle = Array.isArray(channels)
+          ? channels[0]?.title
+          : channels?.title;
+
+        return {
+          id: video.id,
+          title: video.title,
+          youtube_url: video.youtube_url,
+          youtube_id: video.youtube_id,
+          created_at: video.created_at,
+          published_at: video.published_at || video.created_at,
+          duration: video.duration,
+          views: video.view_count,
+          likes: video.like_count,
+          comments: video.comment_count,
+          channels: video.channels,
+          tags: videoTagsMap[video.id] || [],
+          description: video.description,
+          hasSummary: summaryIds.has(video.id),
+          hasChats: chatIds.has(video.id),
+          channel_title: channelTitle || null,
+          blurThumbnail: blurMap.get(video.id) || false,
+        };
+      });
+
+      return {
+        videos: videosWithFlags,
+        nextPage: videos.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 0,
+    enabled: !!userId,
+    staleTime: queryConfig.videos.staleTime,
+    gcTime: queryConfig.videos.gcTime,
+  });
+}
+
 export default function LibraryPage() {
-  const [videos, setVideos] = useState<VideoWithFlags[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [isFetchingNext, setIsFetchingNext] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { userId } = useUserId();
+  const supabase = useMemo(() => createClient(), []);
+
+  // UI state
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [allCollections, setAllCollections] = useState<Collection[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [videoCollectionLinks, setVideoCollectionLinks] = useState<
-    VideoCollection[]
-  >([]);
-  const [allTagObjects, setAllTagObjects] = useState<
-    { id: number; name: string }[]
-  >([]);
-  const [videoTags, setVideoTags] = useState<
-    { video_id: string; tag_id: number }[]
-  >([]);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Bulk selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
-  const supabase = createClient();
+  // Dialog state for delete confirmation
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -75,67 +217,69 @@ export default function LibraryPage() {
     return () => clearTimeout(timerId);
   }, [searchQuery]);
 
-  // Fetch user and collections/tags on mount
+  // Redirect if not authenticated
   useEffect(() => {
-    const fetchUserAndMeta = async () => {
-      console.log(
-        "🔍 [LibraryPage] useEffect triggered - fetchUserAndMeta called",
-      );
-      console.log("🔍 [LibraryPage] supabase dependency changed:", supabase);
-      setLoading(true);
-      setError(null);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+    if (userId === null) {
+      // Wait a moment to avoid flash during loading
+      const timer = setTimeout(() => {
         redirect("/login");
-        return;
-      }
-      console.log("🔍 [LibraryPage] About to set userId:", user.id);
-      console.log("🔍 [LibraryPage] Current userId before setUserId:", userId);
-      setUserId(user.id);
-      console.log("🔍 [LibraryPage] userId set to:", user.id);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [userId]);
 
-      try {
-        // Fetch all collections, video_collections, tags, and video_tags for filter UI
-        const [
-          { data: collectionData },
-          { data: linkData },
-          { data: tagData },
-          { data: videoTagData },
-        ] = await Promise.all([
-          supabase
-            .from("collections")
-            .select("id, name, description, user_id, created_at, updated_at")
-            .eq("user_id", user.id),
-          supabase.from("video_collections").select("video_id, collection_id"),
-          supabase.from("tags").select("id, name"),
-          supabase.from("video_tags").select("video_id, tag_id"),
-        ]);
-        setAllCollections(
-          (collectionData || []).sort((a, b) =>
-            (a.name || "").localeCompare(b.name || ""),
-          ),
-        );
-        setVideoCollectionLinks(linkData || []);
-        setAllTagObjects(tagData || []);
-        setVideoTags(videoTagData || []);
-      } catch (err: any) {
-        setError("Failed to load filter data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserAndMeta();
-  }, [supabase]);
+  // Fetch collections for filter UI
+  const { data: collectionsData = [] } = useCollectionsQuery(userId);
 
-  // Use custom hook for building video query
-  const buildVideoQuery = useVideoQuery({
+  // Convert CollectionWithVideoCount[] to Collection[] for the filter UI
+  const allCollections = useMemo(
+    () =>
+      collectionsData.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        user_id: c.user_id,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+      })),
+    [collectionsData]
+  );
+
+  // Fetch all tags for the filter UI
+  const { data: allTagsData = [] } = useQuery({
+    queryKey: ["allTags"],
+    queryFn: async () => {
+      const { data } = await supabase.from("tags").select("name");
+      return (data || []).map((t) => t.name).sort();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const allTags = allTagsData;
+
+  // Fetch videos with React Query infinite scroll
+  const {
+    data: videosData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: loading,
+    error,
+  } = useEnhancedVideos(
+    userId,
     debouncedSearchQuery,
     selectedTags,
-    selectedCollections,
-    videoCollectionLinks,
-  });
+    selectedCollections
+  );
+
+  // Flatten videos from all pages
+  const videos = useMemo(
+    () => videosData?.pages.flatMap((page) => page.videos) || [],
+    [videosData]
+  );
+
+  // Video mutations
+  const { deleteVideos, setBlurFlag, isDeleting } = useVideoMutations();
 
   // Bulk selection hook
   const { selectedItems, handleItemSelect, clearSelection } = useItemSelection({
@@ -144,256 +288,76 @@ export default function LibraryPage() {
     setIsSelectionMode,
   });
 
-  // Fetch videos (paginated, with filters)
-  const fetchVideos = useCallback(
-    async (pageToFetch: number, reset = false) => {
-      console.log("fetchVideos called with page:", pageToFetch);
-      if (!userId) return;
-      if (reset) {
-        setLoading(true);
-        setError(null);
-      } else {
-        setIsFetchingNext(true);
-      }
-      try {
-        const query = buildVideoQuery(userId, pageToFetch);
-        console.log("Executing query for page:", pageToFetch);
-        const { data, error } = await query;
-        if (error) throw error;
-
-        // Build a map of video_id -> tag names
-        const videoTagsMap: Record<string, string[]> = {};
-        (data || []).forEach((video) => {
-          videoTags
-            .filter((vt) => vt.video_id === video.id)
-            .forEach((vt) => {
-              const tagName = allTagObjects.find(
-                (t) => t.id === vt.tag_id,
-              )?.name;
-              if (tagName) {
-                if (!videoTagsMap[video.id]) videoTagsMap[video.id] = [];
-                videoTagsMap[video.id].push(tagName);
-              }
-            });
-        });
-
-        // --- New logic: check for summaries and chats for each video ---
-        const videoIds = (data || []).map((video) => video.id);
-
-        // Query summaries and chats in parallel
-        const [summariesRes, chatsRes] = await Promise.all([
-          supabase
-            .from("summaries")
-            .select("video_id")
-            .in("video_id", videoIds),
-          supabase.from("chats").select("video_id").in("video_id", videoIds),
-        ]);
-
-        const summaryVideoIds = new Set(
-          (summariesRes.data || []).map((row) => row.video_id),
-        );
-        const chatVideoIds = new Set(
-          (chatsRes.data || []).map((row) => row.video_id),
-        );
-
-        // Map each video to include tags, hasSummary, hasChats, and new fields with defaults
-        let videosWithFlags: VideoWithFlags[] = (data || []).map((video) => {
-          // Destructure video to separate channels, then reconstruct
-          const { channels, ...restOfVideo } = video;
-
-          // Explicitly type and reconstruct channels to match the Video type
-          const typedChannels: { title: string | null } | null =
-            channels && typeof channels === "object" && !Array.isArray(channels)
-              ? { title: (channels as any).title }
-              : null;
-
-          const base: VideoWithFlags = {
-            ...(restOfVideo as any),
-            channels: typedChannels,
-            description: (video as any).description || null,
-            published_at:
-              (video as any).published_at || (video as any).created_at,
-            duration: (video as any).duration || 0,
-            views: (video as any).view_count || 0,
-            likes: (video as any).like_count || 0,
-            comments: (video as any).comment_count || 0,
-            tags: videoTagsMap[video.id] || [],
-            hasSummary: summaryVideoIds.has(video.id),
-            hasChats: chatVideoIds.has(video.id),
-            channel_title: typedChannels?.title || null,
-            blurThumbnail: false, // default, may be overridden by user flags fetch below
-          };
-          return base;
-        });
-
-        // Secondary fetch: per-user blur flags for current page videos
-        try {
-          if (videoIds.length > 0) {
-            const { data: flagsData, error: flagsError } = await supabase
-              .from("user_video_flags")
-              .select("video_id, blur_thumbnail")
-              .eq("user_id", userId)
-              .in("video_id", videoIds);
-
-            if (!flagsError && flagsData) {
-              const blurMap = new Map<string, boolean>();
-              flagsData.forEach((row: any) => {
-                blurMap.set(row.video_id, !!row.blur_thumbnail);
-              });
-              videosWithFlags = videosWithFlags.map((v) => ({
-                ...v,
-                blurThumbnail: blurMap.get(v.id) ?? false,
-              }));
-            }
-          }
-        } catch (_err) {
-          // Gracefully handle if table doesn't exist yet or other errors; default remains false
-          // no-op
-        }
-
-        if (reset) {
-          setVideos(videosWithFlags);
-        } else {
-          setVideos((prev) => {
-            // Deduplicate by id
-            const allVideos = [...prev, ...videosWithFlags];
-            const seen = new Set();
-            return allVideos.filter((v) => {
-              if (seen.has(v.id)) return false;
-              seen.add(v.id);
-              return true;
-            });
-          });
-        }
-
-        // Extract unique tags from this batch
-        const uniqueTags = new Set<string>();
-        Object.values(videoTagsMap).forEach((tagsArr) => {
-          tagsArr.forEach((tag) => uniqueTags.add(tag));
-        });
-        setAllTags((prev) =>
-          Array.from(
-            new Set(Array.from(prev).concat(Array.from(uniqueTags))),
-          ).sort(),
-        );
-        // If less than PAGE_SIZE, no more data
-        setHasMore((data?.length || 0) === PAGE_SIZE);
-      } catch (err: any) {
-        setError("Failed to load videos.");
-        setHasMore(false);
-      } finally {
-        setLoading(false);
-        setIsFetchingNext(false);
-      }
-    },
-    [userId, buildVideoQuery],
-  );
-
-  // Initial and filter-triggered fetch
-  useEffect(() => {
-    console.log("🔍 [LibraryPage] fetchVideos useEffect triggered");
-    console.log("🔍 [LibraryPage] userId:", userId);
-    if (!userId) return;
-    setVideos([]);
-    setPage(0);
-    setHasMore(true);
-    console.log("🔍 [LibraryPage] Calling fetchVideos(0, true)");
-    fetchVideos(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    userId,
-    debouncedSearchQuery,
-    selectedTags,
-    selectedCollections,
-    videoCollectionLinks,
-  ]);
-
   // Infinite scroll fetch
-  const fetchNext = () => {
-    if (isFetchingNext) return;
-    setPage((prevPage) => {
-      const nextPage = prevPage + 1;
-      console.log("fetchNext called, nextPage:", nextPage);
-      fetchVideos(nextPage);
-      return nextPage;
-    });
-  };
+  const fetchNext = useCallback(() => {
+    if (isFetchingNextPage || !hasNextPage) return;
+    fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   // Handlers for tag/collection selection
-  const handleTagSelect = (tag: string) => {
+  const handleTagSelect = useCallback((tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
-  };
-  const handleCollectionSelect = (collectionId: string) => {
+  }, []);
+
+  const handleCollectionSelect = useCallback((collectionId: string) => {
     setSelectedCollections((prev) =>
       prev.includes(collectionId)
         ? prev.filter((id) => id !== collectionId)
-        : [...prev, collectionId],
+        : [...prev, collectionId]
     );
-  };
+  }, []);
 
   // Helper to get collection name by ID
-  const getCollectionName = (collectionId: string) => {
-    return (
-      allCollections.find((c) => c.id === collectionId)?.name ||
-      "Unknown Collection"
-    );
-  };
+  const getCollectionName = useCallback(
+    (collectionId: string) => {
+      return (
+        allCollections.find((c) => c.id === collectionId)?.name ||
+        "Unknown Collection"
+      );
+    },
+    [allCollections]
+  );
 
   // Handler for clearing all filters
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setSelectedTags([]);
     setSelectedCollections([]);
-  };
-
-  // Dialog state for delete confirmation
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  }, []);
 
   // Bulk action handlers
-  const handleBulkDelete = () => {
-    setShowDeleteDialog(true);
-  };
+  const handleBulkDelete = useCallback(async () => {
+    if (!userId || selectedItems.length === 0) return;
 
-  const confirmBulkDelete = async () => {
-    setIsDeleting(true);
-    setDeleteError(null);
     try {
-      const { error } = await supabase
-        .from("videos")
-        .delete()
-        .in("id", selectedItems);
-      if (error) throw error;
-      // Remove deleted videos from state
-      setVideos((prev) => prev.filter((v) => !selectedItems.includes(v.id)));
+      await deleteVideos({ userId, videoIds: selectedItems });
+      setShowDeleteDialog(false);
       clearSelection();
       setIsSelectionMode(false);
-      setShowDeleteDialog(false);
-    } catch (err: any) {
-      setDeleteError("Failed to delete videos.");
-    } finally {
-      setIsDeleting(false);
+    } catch (err) {
+      console.error("Failed to delete videos:", err);
     }
-  };
-  const handleBulkTag = () => {
+  }, [userId, selectedItems, deleteVideos, clearSelection]);
+
+  const handleBulkTag = useCallback(() => {
     // TODO: Implement bulk tag logic
-  };
-  const handleBulkAnalyze = () => {
+  }, []);
+
+  const handleBulkAnalyze = useCallback(() => {
     // TODO: Implement bulk analyze logic
-  };
+  }, []);
 
   // Selection mode toggle
-  const handleToggleSelectionMode = () => {
+  const handleToggleSelectionMode = useCallback(() => {
     if (isSelectionMode) {
       clearSelection();
     }
     setIsSelectionMode(!isSelectionMode);
-  };
+  }, [isSelectionMode, clearSelection]);
 
-  // Bulk blur/unblur handler with majority rule and optimistic update
-  const handleToggleBlur = async () => {
+  // Bulk blur/unblur handler
+  const handleToggleBlur = useCallback(async () => {
     if (selectedItems.length === 0) return;
 
     // Determine majority state among selected
@@ -405,35 +369,14 @@ export default function LibraryPage() {
     const n = selectedItems.length;
     const target = blurredCount >= Math.ceil(n / 2) ? false : true;
 
-    // Snapshot previous states for revert
-    const prevMap = new Map<string, boolean>();
-    videos.forEach((v) => {
-      if (selectedSet.has(v.id)) prevMap.set(v.id, !!v.blurThumbnail);
-    });
-
-    // Optimistic update
-    setVideos((prev) =>
-      prev.map((v) =>
-        selectedSet.has(v.id) ? { ...v, blurThumbnail: target } : v,
-      ),
-    );
-
-    // Persist
     try {
-      const { setBlurFlagForVideos } = await import("@/app/actions");
-      await setBlurFlagForVideos(selectedItems, target);
+      await setBlurFlag({ videoIds: selectedItems, blur: target });
     } catch (err) {
-      // Revert only affected ids
-      console.warn("Failed to persist blur flag, reverting selection.", err);
-      setVideos((prev) =>
-        prev.map((v) =>
-          selectedSet.has(v.id)
-            ? { ...v, blurThumbnail: prevMap.get(v.id) ?? v.blurThumbnail }
-            : v,
-        ),
-      );
+      console.error("Failed to set blur flag:", err);
     }
-  };
+  }, [selectedItems, videos, setBlurFlag]);
+
+  const errorMessage = error instanceof Error ? error.message : null;
 
   return (
     <div className="container mx-auto pt-8 px-4 md:px-6 space-y-6">
@@ -489,15 +432,11 @@ export default function LibraryPage() {
           {/* Bulk Action Bar */}
           {isSelectionMode && (
             <>
-              {console.log(
-                "🔍 [LibraryPage] Rendering BulkActionBar with selectedItems:",
-                selectedItems,
-              )}
               <BulkActionBar
                 selectedCount={selectedItems.length}
                 selectedVideoIds={selectedItems}
                 onClearSelection={clearSelection}
-                onDelete={handleBulkDelete}
+                onDelete={() => setShowDeleteDialog(true)}
                 onTag={handleBulkTag}
                 onAnalyze={handleBulkAnalyze}
                 onToggleBlur={handleToggleBlur}
@@ -524,7 +463,7 @@ export default function LibraryPage() {
                     </li>
                   ))}
               </ul>
-              {deleteError && <p className="text-red-500">{deleteError}</p>}
+              {errorMessage && <p className="text-red-500">{errorMessage}</p>}
               <DialogFooter>
                 <button
                   className="px-4 py-2 rounded bg-muted text-foreground"
@@ -536,7 +475,7 @@ export default function LibraryPage() {
                 </button>
                 <button
                   className="px-4 py-2 rounded bg-destructive text-destructive-foreground"
-                  onClick={confirmBulkDelete}
+                  onClick={handleBulkDelete}
                   disabled={isDeleting}
                   type="button"
                 >
@@ -550,11 +489,11 @@ export default function LibraryPage() {
           {loading && videos.length === 0 ? (
             <LoadingSkeleton viewMode={viewMode} />
           ) : error ? (
-            <p className="text-red-500">{error}</p>
+            <p className="text-red-500">{errorMessage}</p>
           ) : videos.length > 0 ? (
             <VideoList
               videos={videos}
-              hasMore={hasMore}
+              hasMore={hasNextPage}
               fetchNext={fetchNext}
               viewMode={viewMode}
               isSelectionMode={isSelectionMode}

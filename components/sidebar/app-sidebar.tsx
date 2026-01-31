@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import * as React from "react";
 import {
   AudioWaveform,
@@ -26,7 +26,6 @@ import { RadarModal } from "@/components/radar-modal";
 import { SettingsModal } from "@/components/settings-modal";
 import { NavCollections } from "@/components/nav-collections";
 import PinLimitDialog from "@/components/library/PinLimitDialog";
-import { usePinnedCollections } from "@/components/PinnedCollectionsContext";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import {
@@ -36,7 +35,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   SidebarFooter,
   SidebarTrigger,
   useSidebar,
@@ -49,6 +47,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useUserId } from "@/hooks/queries/useUserQuery";
+import { usePinnedCollectionsQuery, useRecentCollectionsQuery } from "@/hooks/queries/usePinnedCollectionsQuery";
+import { usePinnedCollectionMutations } from "@/hooks/mutations/usePinnedCollectionMutations";
 
 // Slipstream sidebar data
 const data = {
@@ -192,21 +193,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     null,
   );
 
-  // Use pinned collections hook
+  // React Query hooks for pinned collections
+  const { userId } = useUserId();
+  const { data: pinnedCollections = [], isLoading: pinnedLoading } = usePinnedCollectionsQuery(userId);
+  const { data: recentCollections = [], isLoading: recentLoading } = useRecentCollectionsQuery(
+    userId,
+    pinnedCollections.map((p) => p.collection_id)
+  );
   const {
-    pinnedCollections,
-    recentCollections,
-    handlePin,
-    handleUnpin,
-    handleReplace,
+    pinCollection,
+    unpinCollection,
     handleReorder,
-    syncingCollectionId,
-  } = usePinnedCollections();
+    isPinning,
+    isUnpinning,
+    isReordering,
+  } = usePinnedCollectionMutations();
+
+  // Syncing collection ID for UI loading state
+  const syncingCollectionId = isPinning || isUnpinning || isReordering ? "syncing" : null;
 
   // Handler for pin with limit check
-  const handlePinWithLimit = async (collectionId: string) => {
+  const handlePinWithLimit = useCallback(async (collectionId: string) => {
+    if (!userId) return;
     try {
-      await handlePin(collectionId);
+      await pinCollection({ userId, collectionId });
     } catch (error: any) {
       if (error.message === "PIN_LIMIT_REACHED") {
         setPendingCollectionId(collectionId);
@@ -215,17 +225,43 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         console.error("Error pinning collection:", error);
       }
     }
-  };
+  }, [userId, pinCollection]);
+
+  // Handler for unpin
+  const handleUnpin = useCallback(async (collectionId: string) => {
+    if (!userId) return;
+    try {
+      await unpinCollection({ userId, collectionId });
+    } catch (error: any) {
+      console.error("Error unpinning collection:", error);
+    }
+  }, [userId, unpinCollection]);
+
+  // Handler for reorder
+  const handleReorderPinned = useCallback(async (newOrder: { id: string; position: number }[]) => {
+    if (!userId) return;
+    try {
+      await handleReorder({ userId, newOrder });
+    } catch (error: any) {
+      console.error("Error reordering pinned collections:", error);
+    }
+  }, [userId, handleReorder]);
 
   // Handler for replace from dialog
-  const handleReplaceFromDialog = async (
+  const handleReplaceFromDialog = useCallback(async (
     oldCollectionId: string,
     newCollectionId: string,
   ) => {
-    await handleReplace(oldCollectionId, newCollectionId);
-    setIsPinLimitDialogOpen(false);
-    setPendingCollectionId(null);
-  };
+    if (!userId) return;
+    try {
+      await unpinCollection({ userId, collectionId: oldCollectionId });
+      await pinCollection({ userId, collectionId: newCollectionId });
+      setIsPinLimitDialogOpen(false);
+      setPendingCollectionId(null);
+    } catch (error: any) {
+      console.error("Error replacing pinned collection:", error);
+    }
+  }, [userId, pinCollection, unpinCollection]);
 
   // Keyboard shortcut to open New dropdown (Alt+N)
   useKeyboardShortcut({
@@ -343,7 +379,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             recentCollections={recentCollections}
             onPin={handlePinWithLimit}
             onUnpin={handleUnpin}
-            onReorder={handleReorder}
+            onReorder={handleReorderPinned}
             syncingCollectionId={syncingCollectionId}
           />
         </SidebarContent>
@@ -352,7 +388,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
         {/* Custom panel-edge trigger with chevron icons */}
         <CustomSidebarTrigger />
-        {/* <SidebarRail /> */}
         {/* Capture Modal */}
         <CaptureModal
           open={isCaptureModalOpen}

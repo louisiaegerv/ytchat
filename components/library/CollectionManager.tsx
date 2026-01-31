@@ -1,175 +1,99 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, ListIcon, Plus, FolderOpen, Pin } from "lucide-react";
-import type { CollectionWithVideoCount, Video } from "@/types/library";
+import { LayoutGrid, ListIcon, Plus, FolderOpen } from "lucide-react";
 import CollectionCard from "./CollectionCard";
 import CollectionList from "./CollectionList";
 import CreateCollectionDialog from "./CreateCollectionDialog";
 import RenameCollectionDialog from "./RenameCollectionDialog";
 import DeleteCollectionDialog from "./DeleteCollectionDialog";
 import PinLimitDialog from "./PinLimitDialog";
-import { usePinnedCollections } from "@/components/PinnedCollectionsContext";
+import { useCollectionsQuery } from "@/hooks/queries/useCollectionsQuery";
+import { usePinnedCollectionsQuery } from "@/hooks/queries/usePinnedCollectionsQuery";
+import { useCollectionMutations } from "@/hooks/mutations/useCollectionMutations";
+import { useIsCollectionPinnedQuery } from "@/hooks/queries/usePinnedCollectionsQuery";
+import { usePinnedCollectionMutations } from "@/hooks/mutations/usePinnedCollectionMutations";
 
 interface CollectionManagerProps {
   userId: string;
 }
 
+// Hook to get pinned status for a single collection
+function useCollectionPinStatus(userId: string, collectionId: string) {
+  const { data: isPinned, isLoading } = useIsCollectionPinnedQuery(
+    userId,
+    collectionId
+  );
+  return { isPinned: isPinned ?? false, isLoading };
+}
+
 export default function CollectionManager({ userId }: CollectionManagerProps) {
   const router = useRouter();
-  const supabase = createClient();
 
-  // Integrate usePinnedCollections hook
-  const {
-    checkIsPinned,
-    handlePin,
-    handleUnpin,
-    pinnedCollections,
-    syncingCollectionId,
-  } = usePinnedCollections();
+  // React Query hooks
+  const { data: collections = [], isLoading: loading, error, refetch } = useCollectionsQuery(userId);
+  const { createCollection, renameCollection, deleteCollection, isCreating } = useCollectionMutations();
+  const { pinCollection, unpinCollection, isPinning, isUnpinning } = usePinnedCollectionMutations();
 
-  const [collections, setCollections] = useState<CollectionWithVideoCount[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // React Query for pinned collections (replaces context)
+  const { data: pinnedCollections = [] } = usePinnedCollectionsQuery(userId);
+  const syncingCollectionId = isPinning || isUnpinning ? "syncing" : null;
+
+  // UI state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [collectionVideos, setCollectionVideos] = useState<
-    Record<string, Video[]>
-  >({});
-  const [pinnedStatus, setPinnedStatus] = useState<Record<string, boolean>>({});
   const [showPinLimitDialog, setShowPinLimitDialog] = useState(false);
-  const [pendingCollectionId, setPendingCollectionId] = useState<string | null>(
-    null,
-  );
-
-  // Ref to track if a fetch is currently in progress
-  // This prevents duplicate fetches from React Strict Mode while allowing the first request
-  const isFetchingRef = useRef(false);
+  const [pendingCollectionId, setPendingCollectionId] = useState<string | null>(null);
 
   // Dialog states
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<
-    string | null
-  >(null);
-
-  // Fetch collections
-  const fetchCollections = useCallback(async () => {
-    // Prevent duplicate fetches caused by React Strict Mode in development
-    // Use a ref to track if a fetch is already in progress
-    if (isFetchingRef.current) {
-      return;
-    }
-    isFetchingRef.current = true;
-    setLoading(true);
-    setError(null);
-    try {
-      const { getCollections, getCollectionVideos } = await import(
-        "@/app/actions"
-      );
-      const data = await getCollections(userId);
-      console.log("🔍 [CollectionManager] Fetched collections:", data);
-      console.log(
-        "🔍 [CollectionManager] Collections with video_count > 0:",
-        data.filter((c) => c.video_count > 0),
-      );
-      setCollections(data);
-
-      // Check pinned status for each collection
-      const pinnedStatusMap: Record<string, boolean> = {};
-      await Promise.all(
-        data.map(async (collection) => {
-          const isPinned = await checkIsPinned(collection.id);
-          pinnedStatusMap[collection.id] = isPinned;
-        }),
-      );
-      setPinnedStatus(pinnedStatusMap);
-
-      // Fetch videos for each collection
-      const videosMap: Record<string, Video[]> = {};
-      await Promise.all(
-        data.map(async (collection) => {
-          if (collection.video_count > 0) {
-            try {
-              const videos = await getCollectionVideos(collection.id);
-              console.log(
-                `🔍 [CollectionManager] Fetched ${videos.length} videos for collection "${collection.name}"`,
-              );
-              videosMap[collection.id] = videos;
-            } catch (err) {
-              console.error(
-                `🔍 [CollectionManager] Error fetching videos for collection "${collection.name}":`,
-                err,
-              );
-              videosMap[collection.id] = [];
-            }
-          } else {
-            videosMap[collection.id] = [];
-          }
-        }),
-      );
-      setCollectionVideos(videosMap);
-    } catch (err: any) {
-      console.error("🔍 [CollectionManager] Error fetching collections:", err);
-      setError(err.message || "Failed to load collections");
-    } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
-    }
-  }, [userId, checkIsPinned]);
-
-  useEffect(() => {
-    fetchCollections();
-  }, [userId]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
   // Handlers
-  const handleOpenCollection = (collectionId: string) => {
+  const handleOpenCollection = useCallback((collectionId: string) => {
     router.push(`/library/collections/${collectionId}`);
-  };
+  }, [router]);
 
-  const handleRenameClick = (collectionId: string) => {
+  const handleRenameClick = useCallback((collectionId: string) => {
     setSelectedCollectionId(collectionId);
     setShowRenameDialog(true);
-  };
+  }, []);
 
-  const handleDeleteClick = (collectionId: string) => {
+  const handleDeleteClick = useCallback((collectionId: string) => {
     setSelectedCollectionId(collectionId);
     setShowDeleteDialog(true);
-  };
+  }, []);
 
-  const handleCreateSuccess = () => {
+  const handleCreateSuccess = useCallback(async () => {
     setShowCreateDialog(false);
-    fetchCollections();
-  };
+    // No need to manually refetch - mutation invalidates cache
+  }, []);
 
-  const handleRenameSuccess = () => {
+  const handleRenameSuccess = useCallback(async () => {
     setShowRenameDialog(false);
     setSelectedCollectionId(null);
-    fetchCollections();
-  };
+    // No need to manually refetch - mutation handles optimistic update
+  }, []);
 
-  const handleDeleteSuccess = () => {
+  const handleDeleteSuccess = useCallback(async () => {
     setShowDeleteDialog(false);
     setSelectedCollectionId(null);
-    fetchCollections();
-  };
+    // No need to manually refetch - mutation handles optimistic update
+  }, []);
 
-  const handleTogglePin = async (collectionId: string) => {
-    const isCurrentlyPinned = pinnedStatus[collectionId];
+  const handleTogglePin = useCallback(async (collectionId: string) => {
+    // Check current pinned status from context (will use query in Phase 6)
+    const isCurrentlyPinned = pinnedCollections.some(
+      (p) => p.collection_id === collectionId
+    );
 
     if (isCurrentlyPinned) {
       // Unpin the collection
       try {
-        await handleUnpin(collectionId);
-        setPinnedStatus((prev) => ({
-          ...prev,
-          [collectionId]: false,
-        }));
+        await unpinCollection({ userId, collectionId });
       } catch (err: any) {
         console.error(
           "🔍 [CollectionManager] Error unpinning collection:",
@@ -179,11 +103,7 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
     } else {
       // Try to pin the collection
       try {
-        await handlePin(collectionId);
-        setPinnedStatus((prev) => ({
-          ...prev,
-          [collectionId]: true,
-        }));
+        await pinCollection({ userId, collectionId });
       } catch (err: any) {
         if (err.message === "PIN_LIMIT_REACHED") {
           // Show pin limit dialog
@@ -197,20 +117,15 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
         }
       }
     }
-  };
+  }, [userId, pinnedCollections, pinCollection, unpinCollection]);
 
-  const handleReplacePin = async (
+  const handleReplacePin = useCallback(async (
     oldCollectionId: string,
     newCollectionId: string,
   ) => {
     try {
-      await handleUnpin(oldCollectionId);
-      await handlePin(newCollectionId);
-      setPinnedStatus((prev) => ({
-        ...prev,
-        [oldCollectionId]: false,
-        [newCollectionId]: true,
-      }));
+      await unpinCollection({ userId, collectionId: oldCollectionId });
+      await pinCollection({ userId, collectionId: newCollectionId });
       setShowPinLimitDialog(false);
       setPendingCollectionId(null);
     } catch (err: any) {
@@ -219,11 +134,13 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
         err,
       );
     }
-  };
+  }, [userId, pinCollection, unpinCollection]);
 
-  const getSelectedCollection = () => {
+  const getSelectedCollection = useCallback(() => {
     return collections.find((c) => c.id === selectedCollectionId);
-  };
+  }, [collections, selectedCollectionId]);
+
+  const errorMessage = error instanceof Error ? error.message : error || null;
 
   // Empty state
   if (!loading && collections.length === 0) {
@@ -282,9 +199,9 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
             </Button>
           </div>
           {/* Create button */}
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={() => setShowCreateDialog(true)} disabled={isCreating}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Collection
+            {isCreating ? "Creating..." : "Create Collection"}
           </Button>
         </div>
       </div>
@@ -297,10 +214,10 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
       )}
 
       {/* Error state */}
-      {error && (
+      {errorMessage && (
         <div className="text-center py-12">
-          <p className="text-destructive">{error}</p>
-          <Button onClick={fetchCollections} variant="outline" className="mt-4">
+          <p className="text-destructive">{errorMessage}</p>
+          <Button onClick={() => refetch()} variant="outline" className="mt-4">
             Retry
           </Button>
         </div>
@@ -316,27 +233,19 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
           }
         >
           {collections.map((collection) => (
-            <div key={collection.id}>
-              {viewMode === "grid" ? (
-                <CollectionCard
-                  collection={collection}
-                  videos={collectionVideos[collection.id] || []}
-                  onOpen={handleOpenCollection}
-                  onRename={handleRenameClick}
-                  onDelete={handleDeleteClick}
-                  isPinned={pinnedStatus[collection.id] || false}
-                  onTogglePin={handleTogglePin}
-                  syncingCollectionId={syncingCollectionId}
-                />
-              ) : (
-                <CollectionList
-                  collection={collection}
-                  onOpen={handleOpenCollection}
-                  onRename={handleRenameClick}
-                  onDelete={handleDeleteClick}
-                />
-              )}
-            </div>
+            <CollectionCardWrapper
+              key={collection.id}
+              collection={collection}
+              userId={userId}
+              viewMode={viewMode}
+              onOpen={handleOpenCollection}
+              onRename={handleRenameClick}
+              onDelete={handleDeleteClick}
+              onTogglePin={handleTogglePin}
+              syncingCollectionId={syncingCollectionId}
+              isPinning={isPinning}
+              isUnpinning={isUnpinning}
+            />
           ))}
         </div>
       )}
@@ -380,5 +289,59 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
         />
       )}
     </div>
+  );
+}
+
+// Wrapper component to handle pin status per collection
+import type { CollectionWithVideoCount } from "@/types/library";
+
+interface CollectionCardWrapperProps {
+  collection: CollectionWithVideoCount;
+  userId: string;
+  viewMode: "grid" | "list";
+  onOpen: (collectionId: string) => void;
+  onRename: (collectionId: string) => void;
+  onDelete: (collectionId: string) => void;
+  onTogglePin: (collectionId: string) => void;
+  syncingCollectionId: string | null;
+  isPinning: boolean;
+  isUnpinning: boolean;
+}
+
+function CollectionCardWrapper({
+  collection,
+  userId,
+  viewMode,
+  onOpen,
+  onRename,
+  onDelete,
+  onTogglePin,
+  syncingCollectionId,
+  isPinning,
+  isUnpinning,
+}: CollectionCardWrapperProps) {
+  const { isPinned } = useCollectionPinStatus(userId, collection.id);
+
+  if (viewMode === "list") {
+    return (
+      <CollectionList
+        collection={collection}
+        onOpen={onOpen}
+        onRename={onRename}
+        onDelete={onDelete}
+      />
+    );
+  }
+
+  return (
+    <CollectionCard
+      collection={collection}
+      onOpen={onOpen}
+      onRename={onRename}
+      onDelete={onDelete}
+      isPinned={isPinned}
+      onTogglePin={onTogglePin}
+      syncingCollectionId={syncingCollectionId}
+    />
   );
 }

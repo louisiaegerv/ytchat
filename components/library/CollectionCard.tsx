@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +16,11 @@ import {
   Video as VideoIcon,
   Pin,
 } from "lucide-react";
-import type { CollectionWithVideoCount, Video } from "@/types/library";
+import type { CollectionWithVideoCount } from "@/types/library";
+import { useCollectionVideosQuery } from "@/hooks/queries/useCollectionsQuery";
 
 interface CollectionCardProps {
   collection: CollectionWithVideoCount;
-  videos?: Video[];
   onOpen?: (collectionId: string) => void;
   onRename?: (collectionId: string) => void;
   onDelete?: (collectionId: string) => void;
@@ -29,7 +31,6 @@ interface CollectionCardProps {
 
 export default function CollectionCard({
   collection,
-  videos = [],
   onOpen,
   onRename,
   onDelete,
@@ -37,13 +38,8 @@ export default function CollectionCard({
   onTogglePin,
   syncingCollectionId = null,
 }: CollectionCardProps) {
-  console.log("🔍 [CollectionCard] Rendering collection:", collection.name);
-  console.log(
-    "🔍 [CollectionCard] collection.video_count:",
-    collection.video_count,
-  );
-  console.log("🔍 [CollectionCard] videos prop received:", videos);
-  console.log("🔍 [CollectionCard] videos.length:", videos.length);
+  // Fetch videos for this collection to display thumbnails
+  const { data: videos = [] } = useCollectionVideosQuery(collection.id);
 
   const handleOpen = () => {
     onOpen?.(collection.id);

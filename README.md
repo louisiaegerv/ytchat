@@ -120,7 +120,6 @@ Leverage AI to uncover themes, generate meta-summaries, and gain deep insights f
   - GPT-4o, GPT-4o Mini
   - Claude 3.5 Sonnet
   - Gemini Pro
-  - DeepSeek V3
   - Groq models (Llama 3, Mixtral)
   - And more via OpenRouter
 
@@ -202,7 +201,6 @@ Leverage AI to uncover themes, generate meta-summaries, and gain deep insights f
   - GPT-4o, GPT-4o Mini
   - Claude 3.5 Sonnet
   - Gemini Pro
-  - DeepSeek V3
   - Groq models
 - **YouTube Data API v3** - Video metadata and transcripts
 - **YouTube Transcript API** - Transcript extraction
@@ -378,10 +376,6 @@ Leverage AI to uncover themes, generate meta-summaries, and gain deep insights f
 - Generate AI summary or chat response
 - Supports multiple AI models
 - Streaming responses supported
-
-**POST /api/deepseek**
-
-- Alternative AI endpoint for DeepSeek models
 
 ### Supabase Client
 

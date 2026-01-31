@@ -13,8 +13,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { GlobalDataProvider } from "@/components/GlobalDataContext";
-import { PinnedCollectionsProvider } from "@/components/PinnedCollectionsContext";
+import { Providers } from "./providers";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Toaster } from "sonner";
@@ -66,9 +65,8 @@ export default async function RootLayout({
         >
           {isAuthenticated ? (
             <SidebarProvider>
-              <GlobalDataProvider>
-                <PinnedCollectionsProvider>
-                  <AppSidebar />
+              <Providers>
+                <AppSidebar />
                   <SidebarInset>
                     {/* Main content */}
                     <main
@@ -81,8 +79,7 @@ export default async function RootLayout({
                     {/* Bottom Navigation */}
                     <BottomNavigation />
                   </SidebarInset>
-                </PinnedCollectionsProvider>
-              </GlobalDataProvider>
+                </Providers>
               <Toaster />
             </SidebarProvider>
           ) : (

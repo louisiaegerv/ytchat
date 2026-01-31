@@ -213,7 +213,7 @@ export default function VideoSelectorDialog({
                       {video.title || "Untitled Video"}
                     </label>
                     <p className="text-xs text-muted-foreground truncate">
-                      {video.channels?.title || "Unknown Channel"}
+                      {video.channels?.[0]?.title || "Unknown Channel"}
                     </p>
                   </div>
                   {selectedIds.has(video.id) && (
