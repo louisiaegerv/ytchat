@@ -136,6 +136,17 @@ export function NavCollections({
   const [isPinnedOpen, setIsPinnedOpen] = useState(true);
   const [isRecentOpen, setIsRecentOpen] = useState(true);
 
+  // Create a Set of pinned collection IDs for O(1) lookup
+  const pinnedCollectionIds = new Set(
+    pinnedCollections.map((p) => p.collection_id)
+  );
+
+  // Filter recent collections to exclude any that are currently pinned
+  // This prevents race conditions where a collection appears in both sections
+  const filteredRecentCollections = recentCollections.filter(
+    (collection) => !pinnedCollectionIds.has(collection.id)
+  );
+
   // DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -229,7 +240,7 @@ export function NavCollections({
       </Collapsible>
 
       {/* Recent Collections - Collapsible */}
-      {recentCollections.length > 0 && (
+      {filteredRecentCollections.length > 0 && (
         <Collapsible open={isRecentOpen} onOpenChange={setIsRecentOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1 text-sm font-medium hover:bg-muted/50 rounded transition-colors">
             <span>Recent</span>
@@ -241,7 +252,7 @@ export function NavCollections({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenu>
-              {recentCollections.map((collection) => (
+              {filteredRecentCollections.map((collection) => (
                 <SidebarMenuItem key={collection.id}>
                   <SidebarMenuButton asChild>
                     <Link href={`/library/collections/${collection.id}`}>
