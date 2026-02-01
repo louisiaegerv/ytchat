@@ -377,7 +377,7 @@ function VideoDetailPage() {
                 >
                   Open Capture Modal
                 </Button>
-                <Link href="/library">
+                <Link href="/videos">
                   <Button variant="outline">Go to Library</Button>
                 </Link>
               </div>

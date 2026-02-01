@@ -13,7 +13,6 @@ import ActiveFiltersBar from "@/components/library/ActiveFiltersBar";
 import LibraryControls from "@/components/library/LibraryControls";
 import VideoList from "@/components/library/VideoList";
 import BulkActionBar from "@/components/library/BulkActionBar";
-import CollectionManager from "@/components/library/CollectionManager";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,6 @@ import {
 import ToolbarButton from "@/components/library/ToolbarButton";
 import { CheckSquare } from "lucide-react";
 import { useItemSelection } from "@/components/library/hooks/useItemSelection";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserId } from "@/hooks/queries/useUserQuery";
 import { useCollectionsQuery } from "@/hooks/queries/useCollectionsQuery";
 import { useVideoMutations } from "@/hooks/mutations/useVideoMutations";
@@ -34,6 +32,15 @@ import { videosKeys } from "@/lib/queryKeys";
 import { queryConfig } from "@/lib/queryClient";
 
 const PAGE_SIZE = 12;
+
+type DateFilterType = "added" | "published" | "all";
+type DateFilterRange = "all" | "today" | "week" | "month" | "year";
+type SortOption = "newest_added" | "oldest_added" | "newest_published" | "oldest_published";
+
+interface DateFilter {
+  type: DateFilterType;
+  range: DateFilterRange;
+}
 
 /**
  * Hook to fetch video metadata (tags, summaries, chats) for enriching video data
@@ -50,7 +57,7 @@ function useVideoMetadata(userId: string | null) {
         await Promise.all([
           supabase.from("tags").select("id, name"),
           supabase.from("video_tags").select("video_id, tag_id"),
-          supabase.from("video_collections").select("video_id, collection_id"),
+          supabase.from("video_collections").select("video_id, collection_id").limit(10000),
         ]);
 
       return {
@@ -65,13 +72,42 @@ function useVideoMetadata(userId: string | null) {
 }
 
 /**
+ * Get start date based on date filter range
+ */
+function getStartDate(range: DateFilterRange): Date | null {
+  if (range === "all") return null;
+  
+  const now = new Date();
+  let startDate = new Date();
+  
+  switch (range) {
+    case "today":
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case "week":
+      startDate.setDate(now.getDate() - 7);
+      break;
+    case "month":
+      startDate.setMonth(now.getMonth() - 1);
+      break;
+    case "year":
+      startDate.setFullYear(now.getFullYear() - 1);
+      break;
+  }
+  
+  return startDate;
+}
+
+/**
  * Hook to fetch enhanced video data with tags, summaries, chats, and blur flags
  */
 function useEnhancedVideos(
   userId: string | null,
   searchQuery: string,
   selectedTags: string[],
-  selectedCollections: string[]
+  selectedCollections: string[],
+  dateFilter: DateFilter,
+  sortBy: SortOption
 ) {
   const supabase = useMemo(() => createClient(), []);
   const { data: metadata } = useVideoMetadata(userId);
@@ -88,15 +124,33 @@ function useEnhancedVideos(
       search: searchQuery,
       tags: selectedTags,
       collections: selectedCollections,
+      dateFilter,
+      sortBy,
     }),
     queryFn: async ({ pageParam = 0 }) => {
       if (!userId) throw new Error("User ID required");
+      
+      let videos: any[] = [];
 
-      let query;
+      // If collection filter is active, get video IDs from those collections first
+      let collectionVideoIds: string[] | null = null;
+      if (selectedCollections.length > 0) {
+        const { data: vcData } = await supabase
+          .from("video_collections")
+          .select("video_id")
+          .in("collection_id", selectedCollections);
+        
+        collectionVideoIds = (vcData || []).map((vc) => vc.video_id);
+        
+        if (collectionVideoIds.length === 0) {
+          // No videos in selected collections
+          return { videos: [], nextPage: undefined };
+        }
+      }
 
       if (searchQuery) {
-        // Use RPC for search
-        query = supabase
+        // Use RPC for search - fetch all and filter client-side for date
+        const { data, error } = await supabase
           .rpc("search_videos_by_title_or_channel", {
             p_user_id: userId,
             p_search_query: searchQuery,
@@ -104,25 +158,74 @@ function useEnhancedVideos(
           .select(
             `id, title, youtube_url, youtube_id, created_at, channel_id, published_at, description, duration, view_count, like_count, comment_count, channels(title)`
           );
+        
+        if (error) throw error;
+        videos = data || [];
+        
+        // Apply collection filter client-side for search
+        if (collectionVideoIds) {
+          videos = videos.filter((v) => collectionVideoIds!.includes(v.id));
+        }
+        
+        // Apply date filter client-side for search results
+        const startDate = getStartDate(dateFilter.range);
+        if (startDate) {
+          if (dateFilter.type === "added") {
+            videos = videos.filter((v) => new Date(v.created_at) >= startDate);
+          } else if (dateFilter.type === "published") {
+            videos = videos.filter((v) => v.published_at && new Date(v.published_at) >= startDate);
+          }
+        }
       } else {
-        // Standard query
-        query = supabase
+        // Standard query - can use server-side filtering
+        let query = supabase
           .from("videos")
           .select(
             `id, title, youtube_url, youtube_id, created_at, channel_id, published_at, description, duration, view_count, like_count, comment_count, channels(title)`
           )
           .eq("user_id", userId);
+        
+        // Apply collection filter server-side
+        if (collectionVideoIds) {
+          query = query.in("id", collectionVideoIds);
+        }
+        
+        // Apply server-side date filters
+        const startDate = getStartDate(dateFilter.range);
+        if (startDate) {
+          if (dateFilter.type === "added") {
+            query = query.gte("created_at", startDate.toISOString());
+          } else if (dateFilter.type === "published") {
+            query = query.gte("published_at", startDate.toISOString());
+          }
+        }
+        
+        // Apply sorting
+        switch (sortBy) {
+          case "newest_added":
+            query = query.order("created_at", { ascending: false });
+            break;
+          case "oldest_added":
+            query = query.order("created_at", { ascending: true });
+            break;
+          case "newest_published":
+            query = query.order("published_at", { ascending: false });
+            break;
+          case "oldest_published":
+            query = query.order("published_at", { ascending: true });
+            break;
+        }
+        
+        // Apply pagination
+        const start = pageParam * PAGE_SIZE;
+        const end = start + PAGE_SIZE - 1;
+        query = query.range(start, end);
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        videos = data || [];
       }
 
-      // Apply pagination
-      const start = pageParam * PAGE_SIZE;
-      const end = start + PAGE_SIZE - 1;
-      query = query.order("created_at", { ascending: false }).range(start, end);
-
-      const { data: videosData, error } = await query;
-      if (error) throw error;
-
-      const videos = videosData || [];
       const videoIds = videos.map((v: any) => v.id);
 
       // Fetch summaries, chats, and blur flags in parallel
@@ -153,8 +256,21 @@ function useEnhancedVideos(
           .filter(Boolean) as string[];
       });
 
+      // Build video collections map
+      const videoCollectionsMap: Record<string, string[]> = {};
+      videos.forEach((video: any) => {
+        const videoCollectionEntries = (metadata?.links || []).filter(
+          (link: any) => link.video_id === video.id
+        );
+        videoCollectionsMap[video.id] = videoCollectionEntries
+          .map((link: any) => link.collection_id)
+          .filter(Boolean);
+      });
+
+
+
       // Transform to VideoWithFlags
-      const videosWithFlags: VideoWithFlags[] = videos.map((video: any) => {
+      let videosWithFlags: VideoWithFlags[] = videos.map((video: any) => {
         const channels = video.channels;
         const channelTitle = Array.isArray(channels)
           ? channels[0]?.title
@@ -181,6 +297,16 @@ function useEnhancedVideos(
         };
       });
 
+      // Apply tag filter
+      if (selectedTags.length > 0) {
+        videosWithFlags = videosWithFlags.filter((video) =>
+          selectedTags.some((tag) => video.tags?.includes(tag))
+        );
+      }
+
+      // Note: Collection filtering is now done server-side
+      // We still need videoCollectionsMap for display purposes
+
       return {
         videos: videosWithFlags,
         nextPage: videos.length === PAGE_SIZE ? pageParam + 1 : undefined,
@@ -194,7 +320,7 @@ function useEnhancedVideos(
   });
 }
 
-export default function LibraryPage() {
+export default function VideosPage() {
   const { userId } = useUserId();
   const supabase = useMemo(() => createClient(), []);
 
@@ -205,6 +331,8 @@ export default function LibraryPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilter>({ type: "all", range: "all" });
+  const [sortBy, setSortBy] = useState<SortOption>("newest_added");
 
   // Dialog state for delete confirmation
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -269,7 +397,9 @@ export default function LibraryPage() {
     userId,
     debouncedSearchQuery,
     selectedTags,
-    selectedCollections
+    selectedCollections,
+    dateFilter,
+    sortBy
   );
 
   // Flatten videos from all pages
@@ -324,6 +454,7 @@ export default function LibraryPage() {
   const handleClearAllFilters = useCallback(() => {
     setSelectedTags([]);
     setSelectedCollections([]);
+    setDateFilter({ type: "all", range: "all" });
   }, []);
 
   // Bulk action handlers
@@ -383,9 +514,9 @@ export default function LibraryPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Videos</h1>
           <p className="text-sm text-muted-foreground">
-            View past transcripts, AI summaries, and chats.
+            View your saved videos, transcripts, and AI summaries.
           </p>
         </div>
         {/* Controls: Search, Filters, and Selection Toggle */}
@@ -401,6 +532,10 @@ export default function LibraryPage() {
             allCollections={allCollections}
             selectedCollections={selectedCollections}
             onCollectionSelect={handleCollectionSelect}
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
           />
           <ToolbarButton
             icon={<CheckSquare size={16} />}
@@ -410,111 +545,95 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Content Section with Tabs */}
-      <Tabs defaultValue="all-videos" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="all-videos">All Videos</TabsTrigger>
-          <TabsTrigger value="groups">Collections</TabsTrigger>
-        </TabsList>
+      {/* Active Filters Display */}
+      <ActiveFiltersBar
+        selectedTags={selectedTags}
+        selectedCollections={selectedCollections}
+        getCollectionName={getCollectionName}
+        dateFilter={dateFilter}
+        onTagRemove={handleTagSelect}
+        onCollectionRemove={handleCollectionSelect}
+        onDateFilterRemove={() => setDateFilter({ type: "all", range: "all" })}
+        onClearAll={handleClearAllFilters}
+      />
 
-        {/* All Videos Tab */}
-        <TabsContent value="all-videos" className="space-y-4">
-          {/* Active Filters Display */}
-          <ActiveFiltersBar
-            selectedTags={selectedTags}
-            selectedCollections={selectedCollections}
-            getCollectionName={getCollectionName}
-            onTagRemove={handleTagSelect}
-            onCollectionRemove={handleCollectionSelect}
-            onClearAll={handleClearAllFilters}
-          />
+      {/* Bulk Action Bar */}
+      {isSelectionMode && (
+        <BulkActionBar
+          selectedCount={selectedItems.length}
+          selectedVideoIds={selectedItems}
+          onClearSelection={clearSelection}
+          onDelete={() => setShowDeleteDialog(true)}
+          onTag={handleBulkTag}
+          onAnalyze={handleBulkAnalyze}
+          onToggleBlur={handleToggleBlur}
+        />
+      )}
 
-          {/* Bulk Action Bar */}
-          {isSelectionMode && (
-            <>
-              <BulkActionBar
-                selectedCount={selectedItems.length}
-                selectedVideoIds={selectedItems}
-                onClearSelection={clearSelection}
-                onDelete={() => setShowDeleteDialog(true)}
-                onTag={handleBulkTag}
-                onAnalyze={handleBulkAnalyze}
-                onToggleBlur={handleToggleBlur}
-              />
-            </>
-          )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete selected videos?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the following videos? This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-40 overflow-y-auto mb-2 pl-4 list-disc">
+            {videos
+              .filter((v) => selectedItems.includes(v.id))
+              .map((v) => (
+                <li key={v.id} className="text-sm">
+                  {v.title || v.id}
+                </li>
+              ))}
+          </ul>
+          {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+          <DialogFooter>
+            <button
+              className="px-4 py-2 rounded bg-muted text-foreground"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 rounded bg-destructive text-destructive-foreground"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              type="button"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Delete Confirmation Dialog */}
-          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete selected videos?</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete the following videos? This
-                  action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <ul className="max-h-40 overflow-y-auto mb-2 pl-4 list-disc">
-                {videos
-                  .filter((v) => selectedItems.includes(v.id))
-                  .map((v) => (
-                    <li key={v.id} className="text-sm">
-                      {v.title || v.id}
-                    </li>
-                  ))}
-              </ul>
-              {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-              <DialogFooter>
-                <button
-                  className="px-4 py-2 rounded bg-muted text-foreground"
-                  onClick={() => setShowDeleteDialog(false)}
-                  disabled={isDeleting}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 rounded bg-destructive text-destructive-foreground"
-                  onClick={handleBulkDelete}
-                  disabled={isDeleting}
-                  type="button"
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Main Content Area */}
-          {loading && videos.length === 0 ? (
-            <LoadingSkeleton viewMode={viewMode} />
-          ) : error ? (
-            <p className="text-red-500">{errorMessage}</p>
-          ) : videos.length > 0 ? (
-            <VideoList
-              videos={videos}
-              hasMore={hasNextPage}
-              fetchNext={fetchNext}
-              viewMode={viewMode}
-              isSelectionMode={isSelectionMode}
-              selectedItems={selectedItems}
-              onSelect={handleItemSelect}
-              setIsSelectionMode={setIsSelectionMode}
-            />
-          ) : (
-            <p>
-              {searchQuery
-                ? "No videos match your search."
-                : "You haven't saved any videos yet."}
-            </p>
-          )}
-        </TabsContent>
-
-        {/* Collections Tab */}
-        <TabsContent value="groups" className="space-y-4">
-          {userId && <CollectionManager userId={userId} />}
-        </TabsContent>
-      </Tabs>
+      {/* Main Content Area */}
+      {loading && videos.length === 0 ? (
+        <LoadingSkeleton viewMode={viewMode} />
+      ) : error ? (
+        <p className="text-red-500">{errorMessage}</p>
+      ) : videos.length > 0 ? (
+        <VideoList
+          videos={videos}
+          hasMore={hasNextPage}
+          fetchNext={fetchNext}
+          viewMode={viewMode}
+          isSelectionMode={isSelectionMode}
+          selectedItems={selectedItems}
+          onSelect={handleItemSelect}
+          setIsSelectionMode={setIsSelectionMode}
+        />
+      ) : (
+        <p>
+          {searchQuery
+            ? "No videos match your search."
+            : "You haven't saved any videos yet."}
+        </p>
+      )}
     </div>
   );
 }

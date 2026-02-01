@@ -42,7 +42,7 @@ function ExploreTranscriptPage() {
   // Redirect to /library if no videoId is present
   useEffect(() => {
     if (!videoIdParam) {
-      router.push("/library");
+      router.push("/videos");
     }
   }, [videoIdParam, router]);
 

@@ -90,7 +90,7 @@ function SortablePinnedCollection({
   return (
     <SidebarMenuItem ref={setNodeRef} style={style}>
       <SidebarMenuButton asChild>
-        <Link href={`/library/collections/${item.collection_id}`}>
+        <Link href={`/collections/${item.collection_id}`}>
           <Folder className="text-blue-500" />
           <span className="truncate">{collectionName}</span>
           <button
@@ -255,7 +255,7 @@ export function NavCollections({
               {filteredRecentCollections.map((collection) => (
                 <SidebarMenuItem key={collection.id}>
                   <SidebarMenuButton asChild>
-                    <Link href={`/library/collections/${collection.id}`}>
+                    <Link href={`/collections/${collection.id}`}>
                       <Folder className="text-muted-foreground" />
                       <span className="truncate">
                         {collection.name || "Unnamed Collection"}

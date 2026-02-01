@@ -5,25 +5,21 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import * as React from "react";
 import {
-  AudioWaveform,
+  Home,
   BookOpen,
-  Boxes,
-  ChevronLeft,
-  ChevronRight,
-  Command,
-  GalleryVerticalEnd,
+  Folder,
+  FileText,
+  RefreshCw,
   Plus,
   Link as LinkIcon,
   WifiCog,
-  Wind,
+  Zap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
-import { CaptureModal } from "@/components/capture-modal";
-import { RadarModal } from "@/components/radar-modal";
-import { SettingsModal } from "@/components/settings-modal";
 import { NavCollections } from "@/components/nav-collections";
 import PinLimitDialog from "@/components/library/PinLimitDialog";
 import { cn } from "@/lib/utils";
@@ -36,7 +32,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -48,53 +43,52 @@ import {
 } from "@/components/ui/tooltip";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useUserId } from "@/hooks/queries/useUserQuery";
-import { usePinnedCollectionsQuery, useRecentCollectionsQuery } from "@/hooks/queries/usePinnedCollectionsQuery";
+import {
+  usePinnedCollectionsQuery,
+  useRecentCollectionsQuery,
+} from "@/hooks/queries/usePinnedCollectionsQuery";
 import { usePinnedCollectionMutations } from "@/hooks/mutations/usePinnedCollectionMutations";
+import { CaptureModal } from "@/components/capture-modal";
+import { RadarModal } from "@/components/radar-modal";
+import { SettingsModal } from "@/components/settings-modal";
 
-// Slipstream sidebar data
-const data = {
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "New",
-      icon: Plus,
-      shortcut: "Alt+N",
-    },
-    {
-      title: "Library",
-      url: "/library",
-      icon: BookOpen,
-      shortcut: "Alt+L",
-    },
-    {
-      title: "Stream Hub",
-      url: "/stream-hub",
-      icon: Boxes,
-      shortcut: "Alt+H",
-    },
-  ],
-};
+// Navigation items for the new dashboard architecture
+const navItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+    shortcut: "",
+  },
+  {
+    title: "Videos",
+    url: "/videos",
+    icon: BookOpen,
+    shortcut: "",
+  },
+  {
+    title: "Collections",
+    url: "/collections",
+    icon: Folder,
+    shortcut: "",
+  },
+  {
+    title: "Streams",
+    url: "/streams",
+    icon: RefreshCw,
+    shortcut: "",
+  },
+  {
+    title: "Reports",
+    url: "/reports",
+    icon: FileText,
+    shortcut: "",
+  },
+];
 
 // Export a lightweight copy of the sidebar data (titles + urls only) for reuse (e.g., breadcrumbs).
-// This avoids importing icon components or React elements in consumers.
 export const __sidebarData__ = {
-  navMain: data.navMain.map((item) => ({
+  navMain: navItems.map((item) => ({
     title: item.title,
     url: item.url,
   })),
@@ -123,14 +117,12 @@ const CustomSidebarTrigger = React.forwardRef<
         // Ghost button styling - invisible by default, visible on hover
         "opacity-0 group-hover:opacity-100",
         // Button styling
-        "flex h-8 w-8 items-center justify-center rounded-md",
-        "bg-sidebar border border-sidebar-border shadow-sm",
-        "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        "flex h-8 w-8 items-center justify-center rounded-full",
+        "bg-sidebar border border-sidebar-border shadow-lg",
+        "text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
         "transition-all duration-200 ease-in-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-        "focus-visible:opacity-100", // Show when focused for accessibility
-        // Cursor changes based on state to indicate direction
-        // state === "expanded" ? "cursor-w-resize" : "cursor-e-resize",
+        "focus-visible:opacity-100",
         className,
       )}
       {...props}
@@ -144,7 +136,6 @@ const CustomSidebarTrigger = React.forwardRef<
     </button>
   );
 
-  // Don't show tooltip on mobile
   if (isMobile) {
     return button;
   }
@@ -152,7 +143,7 @@ const CustomSidebarTrigger = React.forwardRef<
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="left" align="center">
+      <TooltipContent side="right" align="center">
         <div className="flex flex-col gap-1 z-50">
           <p>
             <span className="mr-2">
@@ -195,11 +186,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // React Query hooks for pinned collections
   const { userId } = useUserId();
-  const { data: pinnedCollections = [], isLoading: pinnedLoading } = usePinnedCollectionsQuery(userId);
-  const { data: recentCollections = [], isLoading: recentLoading } = useRecentCollectionsQuery(
-    userId,
-    pinnedCollections.map((p) => p.collection_id)
-  );
+  const { data: pinnedCollections = [], isLoading: pinnedLoading } =
+    usePinnedCollectionsQuery(userId);
+  const { data: recentCollections = [], isLoading: recentLoading } =
+    useRecentCollectionsQuery(
+      userId,
+      pinnedCollections.map((p) => p.collection_id),
+    );
   const {
     pinCollection,
     unpinCollection,
@@ -209,84 +202,84 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     isReordering,
   } = usePinnedCollectionMutations();
 
-  // Syncing collection ID for UI loading state
-  const syncingCollectionId = isPinning || isUnpinning || isReordering ? "syncing" : null;
+  const syncingCollectionId =
+    isPinning || isUnpinning || isReordering ? "syncing" : null;
 
-  // Handler for pin with limit check
-  const handlePinWithLimit = useCallback(async (collectionId: string) => {
-    if (!userId) return;
-    try {
-      await pinCollection({ userId, collectionId });
-    } catch (error: any) {
-      if (error.message === "PIN_LIMIT_REACHED") {
-        setPendingCollectionId(collectionId);
-        setIsPinLimitDialogOpen(true);
-      } else {
-        console.error("Error pinning collection:", error);
+  const handlePinWithLimit = useCallback(
+    async (collectionId: string) => {
+      if (!userId) return;
+      try {
+        await pinCollection({ userId, collectionId });
+      } catch (error: any) {
+        if (error.message === "PIN_LIMIT_REACHED") {
+          setPendingCollectionId(collectionId);
+          setIsPinLimitDialogOpen(true);
+        } else {
+          console.error("Error pinning collection:", error);
+        }
       }
-    }
-  }, [userId, pinCollection]);
+    },
+    [userId, pinCollection],
+  );
 
-  // Handler for unpin
-  const handleUnpin = useCallback(async (collectionId: string) => {
-    if (!userId) return;
-    try {
-      await unpinCollection({ userId, collectionId });
-    } catch (error: any) {
-      console.error("Error unpinning collection:", error);
-    }
-  }, [userId, unpinCollection]);
+  const handleUnpin = useCallback(
+    async (collectionId: string) => {
+      if (!userId) return;
+      try {
+        await unpinCollection({ userId, collectionId });
+      } catch (error: any) {
+        console.error("Error unpinning collection:", error);
+      }
+    },
+    [userId, unpinCollection],
+  );
 
-  // Handler for reorder
-  const handleReorderPinned = useCallback(async (newOrder: { id: string; position: number }[]) => {
-    if (!userId) return;
-    try {
-      await handleReorder({ userId, newOrder });
-    } catch (error: any) {
-      console.error("Error reordering pinned collections:", error);
-    }
-  }, [userId, handleReorder]);
+  const handleReorderPinned = useCallback(
+    async (newOrder: { id: string; position: number }[]) => {
+      if (!userId) return;
+      try {
+        await handleReorder({ userId, newOrder });
+      } catch (error: any) {
+        console.error("Error reordering pinned collections:", error);
+      }
+    },
+    [userId, handleReorder],
+  );
 
-  // Handler for replace from dialog
-  const handleReplaceFromDialog = useCallback(async (
-    oldCollectionId: string,
-    newCollectionId: string,
-  ) => {
-    if (!userId) return;
-    try {
-      await unpinCollection({ userId, collectionId: oldCollectionId });
-      await pinCollection({ userId, collectionId: newCollectionId });
-      setIsPinLimitDialogOpen(false);
-      setPendingCollectionId(null);
-    } catch (error: any) {
-      console.error("Error replacing pinned collection:", error);
-    }
-  }, [userId, pinCollection, unpinCollection]);
+  const handleReplaceFromDialog = useCallback(
+    async (oldCollectionId: string, newCollectionId: string) => {
+      if (!userId) return;
+      try {
+        await unpinCollection({ userId, collectionId: oldCollectionId });
+        await pinCollection({ userId, collectionId: newCollectionId });
+        setIsPinLimitDialogOpen(false);
+        setPendingCollectionId(null);
+      } catch (error: any) {
+        console.error("Error replacing pinned collection:", error);
+      }
+    },
+    [userId, pinCollection, unpinCollection],
+  );
 
-  // Keyboard shortcut to open New dropdown (Alt+N)
   useKeyboardShortcut({
     key: "n",
     altKey: true,
-    handler: () => {
-      setIsDropdownOpen((prev) => !prev);
-    },
+    handler: () => setIsDropdownOpen((prev) => !prev),
   });
 
-  // Keyboard shortcut to open Capture modal directly (Alt+C)
   useKeyboardShortcut({
     key: "v",
     altKey: true,
     handler: () => setIsCaptureModalOpen(true),
   });
 
-  // Keyboard shortcut to open Radar modal (Alt+S)
   useKeyboardShortcut({
     key: "s",
+    shiftKey: true,
     altKey: true,
     handler: () => setIsStreamAutomationModalOpen(true),
   });
 
-  // Handle openSettings event from CaptureModal
   useEffect(() => {
     const handleOpenSettings = () => setIsSettingsModalOpen(true);
     window.addEventListener("openSettings", handleOpenSettings);
@@ -298,82 +291,81 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       try {
         const supabase = createClient();
         const { data: userData, error } = await supabase.auth.getUser();
-
-        if (error || !userData?.user) {
-          console.error("Error fetching user:", error);
-          return;
-        }
-
-        const supabaseUser = userData.user;
+        if (error || !userData?.user) return;
         setUser({
           name:
-            supabaseUser.user_metadata?.name || supabaseUser.email || "User",
-          email: supabaseUser.email || "",
-          avatar: supabaseUser.user_metadata?.avatar_url || "/avatars/user.jpg",
+            userData.user.user_metadata?.name || userData.user.email || "User",
+          email: userData.user.email || "",
+          avatar:
+            userData.user.user_metadata?.avatar_url || "/avatars/user.jpg",
         });
       } catch (error) {
         console.error("Error fetching user:", error);
       }
     };
-
     fetchUser();
   }, []);
 
-  // Dynamically compute active state based on current pathname
-  const navMainWithActiveState = data.navMain.map((item) => {
-    if (item.title === "New") {
-      return {
-        ...item,
-        dropdown: {
-          options: [
-            {
-              label: "Video Scan",
-              icon: LinkIcon,
-              onClick: () => setIsCaptureModalOpen(true),
-              shortcut: "Alt+V",
-            },
-            {
-              label: "Stream Automation",
-              icon: WifiCog,
-              onClick: () => setIsStreamAutomationModalOpen(true),
-              shortcut: "Alt+S",
-            },
-          ],
-          isOpen: isDropdownOpen,
-          onOpenChange: setIsDropdownOpen,
-          triggerRef: dropdownTriggerRef,
-        },
-      };
-    }
-    return {
-      ...item,
-      isActive: pathname === item.url,
-    };
+  const navItemsWithActiveState = navItems.map((item) => {
+    const isActive = item.url
+      ? pathname === item.url || pathname.startsWith(`${item.url}/`)
+      : false;
+    return { ...item, isActive };
   });
+
+  const navItemsWithNew = [
+    {
+      title: "New",
+      icon: Plus,
+      shortcut: "",
+      dropdown: {
+        options: [
+          {
+            label: "Video Scan",
+            icon: LinkIcon,
+            onClick: () => setIsCaptureModalOpen(true),
+            shortcut: "Alt+V",
+          },
+          {
+            label: "New Stream",
+            icon: WifiCog,
+            onClick: () => (window.location.href = "/streams/new"),
+            shortcut: "Alt+Shift+S",
+          },
+        ],
+        isOpen: isDropdownOpen,
+        onOpenChange: setIsDropdownOpen,
+        triggerRef: dropdownTriggerRef,
+      },
+    },
+    ...navItemsWithActiveState,
+  ];
 
   return (
     <>
-      <Sidebar collapsible="icon" variant="inset" {...props}>
-        <SidebarHeader>
-          <div className="flex items-center gap-2">
+      <Sidebar collapsible="icon" variant="inset" className="group" {...props}>
+        <SidebarHeader className="border-b border-sidebar-border/50">
+          <div className="flex items-center gap-2 px-2">
             <SidebarMenu>
-              {/* App Home Button */}
               <SidebarMenuButton size="lg" asChild>
-                <Link href="/">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Wind />
+                <Link href="/dashboard">
+                  {/* Gradient Logo */}
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg logo-gradient shadow-lg shadow-blue-500/20">
+                    <Zap className="w-4 h-4 text-white" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Slipstream</span>
+                    <span className="truncate font-bold text-lg text-white">
+                      Slipstream
+                    </span>
                   </div>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenu>
           </div>
-          {/* <TeamSwitcher teams={data.teams} /> */}
         </SidebarHeader>
-        <SidebarContent>
-          <NavMain items={navMainWithActiveState} />
+
+        <SidebarContent className="px-2">
+          <NavMain items={navItemsWithNew} />
           <NavCollections
             pinnedCollections={pinnedCollections}
             recentCollections={recentCollections}
@@ -383,28 +375,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             syncingCollectionId={syncingCollectionId}
           />
         </SidebarContent>
-        <SidebarFooter>
+
+        <SidebarFooter className="border-t border-sidebar-border/50">
           <NavUser user={user} />
         </SidebarFooter>
-        {/* Custom panel-edge trigger with chevron icons */}
+
         <CustomSidebarTrigger />
-        {/* Capture Modal */}
+
         <CaptureModal
           open={isCaptureModalOpen}
           onOpenChange={setIsCaptureModalOpen}
         />
-        {/* Stream Automation Modal */}
         <RadarModal
           open={isStreamAutomationModalOpen}
           onOpenChange={setIsStreamAutomationModalOpen}
         />
-        {/* Settings Modal */}
         <SettingsModal
           open={isSettingsModalOpen}
           onOpenChange={setIsSettingsModalOpen}
         />
       </Sidebar>
-      {/* Pin Limit Dialog */}
+
       <PinLimitDialog
         open={isPinLimitDialogOpen}
         onOpenChange={setIsPinLimitDialogOpen}

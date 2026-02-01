@@ -3,13 +3,16 @@ export type Video = {
   title: string | null;
   youtube_url: string;
   youtube_id: string;
+  youtube_thumbnail?: string | null;
   created_at: string;
   published_at: string;
-  duration?: string | null; // Stored as text in database (e.g., "PT10M30S" or "10:30")
+  duration?: string | null;
   views?: number | null;
   likes?: number | null;
   comments?: number | null;
-  channels?: { title: string | null }[] | null; // Supabase returns related data as arrays
+  channel_id?: string | null;
+  channel_title?: string | null;
+  channels?: { title: string | null }[] | null;
   tags: string[] | null;
 };
 

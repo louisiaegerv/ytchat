@@ -57,6 +57,8 @@ interface VideoListFilters {
   search?: string;
   tags?: string[];
   collections?: string[];
+  dateFilter?: { type: "added" | "published" | "all"; range: "all" | "today" | "week" | "month" | "year" };
+  sortBy?: "newest_added" | "oldest_added" | "newest_published" | "oldest_published";
 }
 
 export const videosKeys = {

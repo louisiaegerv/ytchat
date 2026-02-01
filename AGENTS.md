@@ -249,7 +249,7 @@ npm run start        # Start production server
 - Supabase Auth with email/password
 - Middleware (`middleware.ts`) checks session on every request
 - Protected routes redirect to `/login` if not authenticated
-- Auth routes redirect to `/library` if already authenticated
+- Auth routes redirect to `/videos` if already authenticated
 - Server actions in `app/actions.ts` handle auth operations
 
 ### Data Fetching

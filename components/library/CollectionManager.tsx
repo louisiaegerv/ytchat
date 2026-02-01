@@ -54,7 +54,7 @@ export default function CollectionManager({ userId }: CollectionManagerProps) {
 
   // Handlers
   const handleOpenCollection = useCallback((collectionId: string) => {
-    router.push(`/library/collections/${collectionId}`);
+    router.push(`/collections/${collectionId}`);
   }, [router]);
 
   const handleRenameClick = useCallback((collectionId: string) => {

@@ -1,7 +1,6 @@
 "use client";
 
-import { ChevronRight, type LucideIcon } from "lucide-react";
-
+import { ChevronRight, type LucideIcon, Plus } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -9,13 +8,13 @@ import {
 } from "@/components/ui/collapsible";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
@@ -24,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export function NavMain({
   items,
@@ -52,10 +52,12 @@ export function NavMain({
     };
   }[];
 }) {
+  const { state } = useSidebar();
+  const isExpanded = state === "expanded";
+
   return (
-    <SidebarGroup>
-      {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
-      <SidebarMenu>
+    <SidebarGroup className="px-2">
+      <SidebarMenu className="gap-1">
         {items.map((item) =>
           item.dropdown ? (
             <SidebarMenuItem key={item.title}>
@@ -67,12 +69,39 @@ export function NavMain({
                   <SidebarMenuButton
                     ref={item.dropdown.triggerRef}
                     tooltip={item.title}
+                    className={cn(
+                      "h-11 transition-all duration-200",
+                      // Special styling for "New" button - gradient background
+                      item.title === "New" && [
+                        "text-center bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600",
+                        "text-white border-0 shadow-lg shadow-blue-500/20",
+                        "hover:text-white hover:shadow-blue-500/30",
+                        "data-[state=open]:from-blue-600 data-[state=open]:to-violet-600",
+                      ],
+                    )}
                   >
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
+                    {item.title === "New" ? (
+                      <Plus className="h-4 w-4" />
+                    ) : (
+                      item.icon && <item.icon />
+                    )}
+                    <span
+                      className={cn(item.title === "New" && "font-semibold")}
+                    >
+                      {item.title}
+                    </span>
                     {item.shortcut && (
-                      <KbdGroup className="ml-auto">
-                        <Kbd>{item.shortcut}</Kbd>
+                      <KbdGroup
+                        className={cn("ml-auto", !isExpanded && "hidden")}
+                      >
+                        <Kbd
+                          className={cn(
+                            item.title === "New" &&
+                              "border-white/30 bg-white/10 text-white/80",
+                          )}
+                        >
+                          {item.shortcut}
+                        </Kbd>
                       </KbdGroup>
                     )}
                   </SidebarMenuButton>
@@ -139,7 +168,9 @@ export function NavMain({
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   {item.shortcut && (
-                    <KbdGroup className="ml-auto">
+                    <KbdGroup
+                      className={cn("ml-auto", !isExpanded && "hidden")}
+                    >
                       <Kbd>{item.shortcut}</Kbd>
                     </KbdGroup>
                   )}
@@ -153,6 +184,13 @@ export function NavMain({
                   <a href={item.url} className="flex items-center gap-2 w-full">
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
+                    {item.shortcut && (
+                      <KbdGroup
+                        className={cn("ml-auto", !isExpanded && "hidden")}
+                      >
+                        <Kbd>{item.shortcut}</Kbd>
+                      </KbdGroup>
+                    )}
                   </a>
                 </SidebarMenuButton>
               )}

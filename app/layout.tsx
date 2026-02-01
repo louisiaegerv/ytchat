@@ -26,8 +26,6 @@ export const metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Slipstream - YouTube Intelligence Platform",
   description: "Go beyond the limits of YouTube.",
-  viewport:
-    "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover",
 };
 
 export const viewport = {
@@ -67,19 +65,21 @@ export default async function RootLayout({
             <SidebarProvider>
               <Providers>
                 <AppSidebar />
-                  <SidebarInset>
-                    {/* Main content */}
-                    <main
-                      className="flex-1 flex flex-col items-center"
-                      style={{ scrollbarWidth: "none" }}
-                    >
-                      {children}
-                    </main>
+                {/* <SidebarInset className="group/sidebar-inset"> */}
+                {/* Main content */}
+                <main
+                  className="flex-1 flex flex-col min-h-screen pb-20 lg:pb-0"
+                  style={{ scrollbarWidth: "none" }}
+                >
+                  <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
+                    {children}
+                  </div>
+                </main>
 
-                    {/* Bottom Navigation */}
-                    <BottomNavigation />
-                  </SidebarInset>
-                </Providers>
+                {/* Bottom Navigation - Mobile only */}
+                <BottomNavigation />
+                {/* </SidebarInset> */}
+              </Providers>
               <Toaster />
             </SidebarProvider>
           ) : (
