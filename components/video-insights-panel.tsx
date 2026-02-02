@@ -191,10 +191,9 @@ export function VideoInsightsPanel() {
     }
   }, [transcript]);
 
-  // Clear AI summary when transcript changes
-  useEffect(() => {
-    setAiSummary("");
-  }, [transcript]);
+  // Note: We intentionally don't clear the AI summary when transcript changes
+  // The summary is fetched from the database and should persist
+  // Only clear when explicitly generating a new summary
 
   return (
     <div className="w-full h-full flex flex-col">

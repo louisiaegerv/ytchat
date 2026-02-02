@@ -68,12 +68,31 @@ export function AISummaryPanel({
 
   // Reader preferences state
   const [textSize, setTextSize] = useState<TextSize>("normal");
-  const [lineHeight, setLineHeight] = useState<"tight" | "normal" | "relaxed">("relaxed");
+  const [lineHeight, setLineHeight] = useState<"tight" | "normal" | "relaxed">(
+    "relaxed",
+  );
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isFullWidth, setIsFullWidth] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile and set focus mode as default
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Auto-enable focus mode on mobile when dialog opens
+      if (mobile && isOpen) {
+        setIsFocusMode(true);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [isOpen]);
 
   useEffect(() => {
     console.log("AI Summary:", aiSummary?.substring(0, 50));
@@ -83,13 +102,13 @@ export function AISummaryPanel({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      
+
       // ESC to exit focus mode
       if (e.key === "Escape" && isFocusMode) {
         setIsFocusMode(false);
         return;
       }
-      
+
       // Cmd/Ctrl + +/- for text size
       if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+")) {
         e.preventDefault();
@@ -107,9 +126,14 @@ export function AISummaryPanel({
           return sizes[Math.max(idx - 1, 0)];
         });
       }
-      
+
       // F for focus mode
-      if (e.key === "f" && !e.metaKey && !e.ctrlKey && e.target === document.body) {
+      if (
+        e.key === "f" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        e.target === document.body
+      ) {
         setIsFocusMode((prev) => !prev);
       }
     };
@@ -129,7 +153,7 @@ export function AISummaryPanel({
     if (!aiSummary) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -185,7 +209,7 @@ export function AISummaryPanel({
         "flex items-center gap-1 p-2 rounded-xl transition-all",
         inDialog
           ? "bg-black/40 backdrop-blur-xl border border-white/10"
-          : "bg-white/5 border border-white/10"
+          : "bg-white/5 border border-white/10",
       )}
     >
       {/* Text Size Controls */}
@@ -251,7 +275,11 @@ export function AISummaryPanel({
               className="h-8 w-8 text-gray-400 hover:text-white"
               onClick={() =>
                 setLineHeight((prev) =>
-                  prev === "tight" ? "normal" : prev === "normal" ? "relaxed" : "tight"
+                  prev === "tight"
+                    ? "normal"
+                    : prev === "normal"
+                      ? "relaxed"
+                      : "tight",
                 )
               }
             >
@@ -279,7 +307,9 @@ export function AISummaryPanel({
               size="icon"
               className={cn(
                 "h-8 w-8",
-                isFocusMode ? "text-blue-400" : "text-gray-400 hover:text-white"
+                isFocusMode
+                  ? "text-blue-400"
+                  : "text-gray-400 hover:text-white",
               )}
               onClick={() => setIsFocusMode(!isFocusMode)}
             >
@@ -302,7 +332,9 @@ export function AISummaryPanel({
               size="icon"
               className={cn(
                 "h-8 w-8",
-                isFullWidth ? "text-blue-400" : "text-gray-400 hover:text-white"
+                isFullWidth
+                  ? "text-blue-400"
+                  : "text-gray-400 hover:text-white",
               )}
               onClick={() => setIsFullWidth(!isFullWidth)}
             >
@@ -390,13 +422,14 @@ export function AISummaryPanel({
                   isFocusMode
                     ? "!fixed !inset-0 !w-screen !h-screen !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0"
                     : isFullWidth
-                    ? "max-w-6xl w-[95vw] max-h-[90vh]"
-                    : "max-w-3xl w-[90vw] max-h-[85vh]",
-                  "glass-strong border-white/10"
+                      ? "max-w-6xl w-[95vw] max-h-[90vh]"
+                      : "max-w-3xl w-[90vw] max-h-[85vh]",
+                  "glass-strong border-white/10",
                 )}
               >
-                {/* Focus Mode Exit Button */}
-                {isFocusMode && (
+                <DialogTitle></DialogTitle>
+                {/* Focus Mode Exit Button - Only show on desktop */}
+                {isFocusMode && !isMobile && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -408,32 +441,40 @@ export function AISummaryPanel({
                   </Button>
                 )}
 
-                {/* Header */}
-                <DialogHeader
-                  className={cn(
-                    "px-6 transition-all duration-300",
-                    isFocusMode 
-                      ? "fixed top-0 left-0 right-0 z-40 pt-16 pb-4 bg-gradient-to-b from-background to-transparent" 
-                      : "py-4 border-b border-white/5"
-                  )}
-                >
-                  <div className={cn(
-                    "flex items-center justify-between",
-                    isFocusMode && "max-w-6xl mx-auto px-6"
-                  )}>
-                    <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-violet-400" />
-                      AI Summary
-                    </DialogTitle>
-                    {!isFocusMode && <ReaderToolbar inDialog />}
-                  </div>
-                </DialogHeader>
+                {/* Header - Hidden on mobile in focus mode */}
+                {(!isFocusMode || !isMobile) && (
+                  <DialogHeader
+                    className={cn(
+                      "px-6 transition-all duration-300",
+                      isFocusMode
+                        ? "fixed top-0 left-0 right-0 z-40 pt-16 pb-4 bg-gradient-to-b from-background to-transparent"
+                        : "py-4 border-b border-white/5",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex items-center justify-between",
+                        isFocusMode && "max-w-6xl mx-auto px-6",
+                      )}
+                    >
+                      <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-violet-400" />
+                        AI Summary
+                      </DialogTitle>
+                      {!isFocusMode && <ReaderToolbar inDialog />}
+                    </div>
+                  </DialogHeader>
+                )}
 
                 {/* Content */}
                 <div
                   className={cn(
                     "overflow-y-auto transition-all duration-300",
-                    isFocusMode ? "pt-32 pb-24 px-8 h-screen" : "px-6 py-6"
+                    isFocusMode
+                      ? isMobile
+                        ? "pt-4 pb-24 px-4 h-screen"
+                        : "pt-32 pb-24 px-8 h-screen"
+                      : "px-6 py-6",
                   )}
                   style={{ scrollbarWidth: "thin" }}
                 >
@@ -444,7 +485,7 @@ export function AISummaryPanel({
                       lineHeight === "tight" && "leading-tight",
                       lineHeight === "normal" && "leading-normal",
                       lineHeight === "relaxed" && "leading-relaxed",
-                      isFullWidth || isFocusMode ? "max-w-none" : "max-w-prose"
+                      isFullWidth || isFocusMode ? "max-w-none" : "max-w-prose",
                     )}
                   >
                     <Markdown>{aiSummary}</Markdown>

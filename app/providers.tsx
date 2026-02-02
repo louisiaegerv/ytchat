@@ -12,10 +12,8 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <GlobalDataProvider>
-        {children}
-      </GlobalDataProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      <GlobalDataProvider>{children}</GlobalDataProvider>
+      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
     </QueryClientProvider>
   );
 }
