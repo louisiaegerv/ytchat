@@ -42,6 +42,39 @@ export function useVideoMutations() {
   // Delete videos mutation with optimistic update
   const deleteMutation = useMutation({
     mutationFn: async (variables: DeleteVideosVariables) => {
+      // Delete related data first to avoid FK violations
+      const tablesToClean = [
+        "video_collections",
+        "video_tags", 
+        "user_video_flags",
+        "video_sentiment_cache",
+        "transcripts",
+        "summaries",
+      ];
+
+      for (const table of tablesToClean) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .in("video_id", variables.videoIds);
+        
+        // Ignore errors - table might not exist or have different column names
+        if (error && !error.message?.includes("column")) {
+          console.warn(`Warning: Could not delete from ${table}:`, error.message);
+        }
+      }
+
+      // Delete chat sessions (and their chats via cascade)
+      const { error: sessionsError } = await supabase
+        .from("chat_sessions")
+        .delete()
+        .in("video_id", variables.videoIds);
+      
+      if (sessionsError && !sessionsError.message?.includes("column")) {
+        console.warn("Warning: Could not delete chat sessions:", sessionsError.message);
+      }
+
+      // Finally delete the videos
       const { error } = await supabase
         .from("videos")
         .delete()

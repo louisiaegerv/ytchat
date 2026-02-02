@@ -15,7 +15,17 @@ import {
 import { generateSummary } from "@/utils/summaryGenerator";
 import { SettingsModal } from "@/components/settings-modal";
 import CollectionSelectorDialog from "@/components/library/CollectionSelectorDialog";
-import { FolderPlus, Folder, X, Loader2 } from "lucide-react";
+import { 
+  FolderPlus, 
+  Folder, 
+  X, 
+  Loader2, 
+  Video, 
+  Plus, 
+  FolderOpen,
+  ArrowUpRight,
+  Sparkles
+} from "lucide-react";
 import {
   addVideosToCollection,
   removeVideosFromCollection,
@@ -68,19 +78,32 @@ function VideoDetailPage() {
         }
         const userId = userData?.user?.id;
 
-        // Get video metadata
+        // Get video metadata with channel title
+        console.log("Fetching video with ID:", videoId);
         const { data: videoData, error: videoError } = await supabase
           .from("videos")
           .select(
-            "id, youtube_url, youtube_id, title, youtube_thumbnail, channel_id, published_at, description, duration, view_count, like_count, comment_count",
+            `id, youtube_url, youtube_id, title, youtube_thumbnail, channel_id, published_at, description, duration, view_count, like_count, comment_count,
+            channels(title)`,
           )
           .eq("id", videoId)
           .single();
-        if (videoError || !videoData) {
-          setError("Video not found.");
+        
+        if (videoError) {
+          console.error("Video fetch error:", videoError);
+          setError(`Video fetch error: ${videoError.message}`);
           setIsLoading(false);
           return;
         }
+        
+        if (!videoData) {
+          console.error("No video data returned for ID:", videoId);
+          setError("Video not found in database.");
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log("Video data found:", videoData.title);
         setVideoUuid(videoData.id);
         setYoutubeUrl(videoData.youtube_url);
         setYoutubeId(videoData.youtube_id);
@@ -127,8 +150,9 @@ function VideoDetailPage() {
         }
 
         setIsLoading(false);
-      } catch (err) {
-        setError("Failed to load video data.");
+      } catch (err: any) {
+        console.error("Exception in fetchVideoById:", err);
+        setError(`Failed to load video data: ${err?.message || "Unknown error"}`);
         setIsLoading(false);
       }
     };
@@ -276,15 +300,77 @@ function VideoDetailPage() {
     setIsCollectionSelectorOpen(true);
   };
 
+  // Loading Skeleton
+  if (isLoading) {
+    return (
+      <div className="relative min-h-screen">
+        {/* Background Orbs */}
+        <div className="orb orb-1" />
+        <div className="orb orb-2" />
+        <div className="orb orb-3" />
+        
+        <div className="relative z-10 flex flex-col max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Video Panel Skeleton */}
+            <div className="glass-strong rounded-3xl p-6 space-y-4 animate-pulse">
+              <div className="aspect-video bg-white/5 rounded-2xl" />
+              <div className="h-6 bg-white/5 rounded w-3/4" />
+              <div className="h-4 bg-white/5 rounded w-1/2" />
+              <div className="flex gap-2">
+                <div className="h-8 w-20 bg-white/5 rounded-full" />
+                <div className="h-8 w-20 bg-white/5 rounded-full" />
+              </div>
+            </div>
+
+            {/* Insights Panel Skeleton */}
+            <div className="glass-strong rounded-3xl p-6">
+              <div className="h-10 bg-white/5 rounded-xl mb-4" />
+              <div className="space-y-3">
+                <div className="h-4 bg-white/5 rounded w-full" />
+                <div className="h-4 bg-white/5 rounded w-5/6" />
+                <div className="h-4 bg-white/5 rounded w-4/6" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <div className="flex flex-col max-w-5xl w-full mx-auto px-4 sm:px-6">
-        {/* Only show content when videoId is present */}
-        {videoId ? (
-          <>
-            {/* Main content */}
-            {videoMeta && (
-              <div className="w-full gap-6 flex flex-col md:flex-row md:space-y-0 md:h-full">
+    <div className="relative min-h-screen pb-12">
+      {/* Background Orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      <div className="orb orb-3" />
+
+      <div className="relative z-10 flex flex-col max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+        {/* Error State */}
+        {error ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-500 rounded-full blur-3xl opacity-20" />
+              <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center border border-red-500/20">
+                <Video className="w-12 h-12 text-red-400" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-3">Video Not Found</h1>
+            <p className="text-gray-400 max-w-md mb-2 leading-relaxed">{error}</p>
+            <p className="text-sm text-gray-500 mb-8">Video ID: {videoId}</p>
+            <Link href="/library">
+              <Button variant="outline" size="lg" className="border-white/10 hover:bg-white/5 px-6">
+                <FolderOpen className="w-5 h-5 mr-2" />
+                Go to Library
+              </Button>
+            </Link>
+          </div>
+        ) : videoId && videoMeta ? (
+          /* Video Content */
+          <div className="space-y-8">
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Video Panel */}
+              <div className="order-1">
                 <VideoInfoPanel
                   url={videoMeta.youtube_url}
                   isLoading={isLoading}
@@ -293,94 +379,119 @@ function VideoDetailPage() {
                   videoMeta={videoMeta}
                   youtubeId={youtubeId}
                 />
+              </div>
+
+              {/* Insights Panel */}
+              <div className="order-2">
                 <VideoInsightsPanel />
               </div>
-            )}
+            </div>
 
             {/* Collections Section */}
-            {videoMeta && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Folder className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-medium">Collections</h3>
+            <div className="glass rounded-2xl border-white/10 p-6 card-lift">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
+                    <FolderOpen className="w-5 h-5 text-amber-400" />
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={openCollectionSelector}
-                    disabled={isUpdatingCollections}
-                  >
-                    <FolderPlus className="h-4 w-4 mr-2" />
-                    Add to Collection
-                  </Button>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Collections</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {videoCollections.length > 0 
+                        ? `In ${videoCollections.length} collection${videoCollections.length > 1 ? "s" : ""}`
+                        : "Not in any collections yet"}
+                    </p>
+                  </div>
                 </div>
-
-                {/* Collections badges */}
-                {isCollectionsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading collections...
-                  </div>
-                ) : videoCollections.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {videoCollections.map((collection) => (
-                      <div
-                        key={collection.id}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                      >
-                        <span>{collection.name || "Untitled"}</span>
-                        {!isUpdatingCollections && (
-                          <button
-                            onClick={() =>
-                              handleRemoveFromCollection(collection.id)
-                            }
-                            className="ml-1 hover:text-destructive transition-colors"
-                            title="Remove from collection"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                        {isUpdatingCollections && (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    This video is not in any collections yet.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {error && <div className="text-red-500 mt-4">{error}</div>}
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="text-center max-w-md">
-              <h1 className="text-2xl font-semibold tracking-tight mb-4">
-                No Video Selected
-              </h1>
-              <p className="text-sm text-muted-foreground mb-6">
-                Use the Capture modal from the sidebar to add a new video, or go
-                to your Library to view existing videos.
-              </p>
-              <div className="flex gap-4 justify-center">
                 <Button
-                  onClick={() => {
-                    const captureEvent = new CustomEvent("openCapture");
-                    window.dispatchEvent(captureEvent);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={openCollectionSelector}
+                  disabled={isUpdatingCollections}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/30 transition-all"
                 >
-                  Open Capture Modal
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  Add to Collection
                 </Button>
-                <Link href="/videos">
-                  <Button variant="outline">Go to Library</Button>
-                </Link>
               </div>
+
+              {isCollectionsLoading ? (
+                <div className="flex items-center gap-3 py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                  <span className="text-sm text-gray-400">Loading collections...</span>
+                </div>
+              ) : videoCollections.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {videoCollections.map((collection, index) => (
+                    <div
+                      key={collection.id}
+                      className="group inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 hover:border-blue-500/40 transition-all"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <Folder className="w-4 h-4 text-blue-400" />
+                      <span className="text-sm font-medium text-gray-200">
+                        {collection.name}
+                      </span>
+                      <Link href={`/library/collections/${collection.id}`}>
+                        <ArrowUpRight className="w-3.5 h-3.5 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                      </Link>
+                      <button
+                        onClick={() => handleRemoveFromCollection(collection.id)}
+                        className="ml-1 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                        disabled={isUpdatingCollections}
+                        title="Remove from collection"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                  <Folder className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">This video isn&apos;t in any collections yet.</p>
+                  <button 
+                    onClick={openCollectionSelector}
+                    className="text-sm text-blue-400 hover:text-blue-300 mt-1 transition-colors"
+                  >
+                    Add it to one now →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Empty State - No Video Selected */
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            {/* Animated Background Element */}
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur-3xl opacity-20 animate-pulse" />
+              <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/10">
+                <Video className="w-12 h-12 text-gray-400" />
+              </div>
+            </div>
+
+            <h1 className="text-3xl font-bold text-white mb-3">No Video Selected</h1>
+            <p className="text-gray-400 max-w-md mb-8 leading-relaxed">
+              Capture a new video to analyze its content with AI, or browse your library to revisit previous insights.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={() => {
+                  const captureEvent = new CustomEvent("openCapture");
+                  window.dispatchEvent(captureEvent);
+                }}
+                className="btn-gradient glow-primary px-6"
+                size="lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Capture Video
+              </Button>
+              <Link href="/library">
+                <Button variant="outline" size="lg" className="border-white/10 hover:bg-white/5 px-6">
+                  <FolderOpen className="w-5 h-5 mr-2" />
+                  Browse Library
+                </Button>
+              </Link>
             </div>
           </div>
         )}
@@ -398,7 +509,7 @@ function VideoDetailPage() {
         open={isSettingsModalOpen}
         onOpenChange={setIsSettingsModalOpen}
       />
-    </>
+    </div>
   );
 }
 

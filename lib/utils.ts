@@ -31,6 +31,53 @@ export function formatNumberShort(num: number): string {
   return num.toString();
 }
 
+/**
+ * Formats a number with compact notation (e.g., 21,716 -> 21.7K)
+ * Uses Intl.NumberFormat for localization
+ */
+export function formatNumber(num: number): string {
+  if (num === null || num === undefined) return "0";
+  return new Intl.NumberFormat("en", { notation: "compact" }).format(num);
+}
+
+/**
+ * Formats a date string to a readable format
+ */
+export function formatDate(dateString: string | Date): string {
+  if (!dateString) return "";
+  const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Formats an ISO 8601 duration string (e.g., PT4H15M30S) to a readable format
+ */
+export function formatDuration(duration: string): string {
+  if (!duration) return "";
+  
+  // If it's already a simple time format (e.g., "4:15"), return as-is
+  if (!duration.startsWith("PT") && duration.includes(":")) {
+    return duration;
+  }
+  
+  // Parse ISO 8601 duration
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return duration;
+  
+  const hours = parseInt(match[1] || "0");
+  const minutes = parseInt(match[2] || "0");
+  const seconds = parseInt(match[3] || "0");
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export const formatCompactDate = (date: Date): string => {
   const now = new Date();
   const diffInMinutes = Math.floor(

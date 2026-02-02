@@ -148,6 +148,32 @@ function useEnhancedVideos(
         }
       }
 
+      // If tag filter is active, get video IDs that have those tags
+      let tagVideoIds: string[] | null = null;
+      if (selectedTags.length > 0) {
+        // First get tag IDs for the selected tag names
+        const { data: tagData } = await supabase
+          .from("tags")
+          .select("id, name")
+          .in("name", selectedTags);
+        
+        const tagIds = (tagData || []).map((t) => t.id);
+        
+        if (tagIds.length > 0) {
+          const { data: vtData } = await supabase
+            .from("video_tags")
+            .select("video_id")
+            .in("tag_id", tagIds);
+          
+          tagVideoIds = (vtData || []).map((vt) => vt.video_id);
+          
+          if (tagVideoIds.length === 0) {
+            // No videos with selected tags
+            return { videos: [], nextPage: undefined };
+          }
+        }
+      }
+
       if (searchQuery) {
         // Use RPC for search - fetch all and filter client-side for date
         const { data, error } = await supabase
@@ -165,6 +191,11 @@ function useEnhancedVideos(
         // Apply collection filter client-side for search
         if (collectionVideoIds) {
           videos = videos.filter((v) => collectionVideoIds!.includes(v.id));
+        }
+        
+        // Apply tag filter client-side for search
+        if (tagVideoIds) {
+          videos = videos.filter((v) => tagVideoIds!.includes(v.id));
         }
         
         // Apply date filter client-side for search results
@@ -188,6 +219,11 @@ function useEnhancedVideos(
         // Apply collection filter server-side
         if (collectionVideoIds) {
           query = query.in("id", collectionVideoIds);
+        }
+        
+        // Apply tag filter server-side
+        if (tagVideoIds) {
+          query = query.in("id", tagVideoIds);
         }
         
         // Apply server-side date filters
@@ -297,14 +333,7 @@ function useEnhancedVideos(
         };
       });
 
-      // Apply tag filter
-      if (selectedTags.length > 0) {
-        videosWithFlags = videosWithFlags.filter((video) =>
-          selectedTags.some((tag) => video.tags?.includes(tag))
-        );
-      }
-
-      // Note: Collection filtering is now done server-side
+      // Note: Tag and Collection filtering is now done server-side
       // We still need videoCollectionsMap for display purposes
 
       return {

@@ -1,6 +1,15 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { 
+  ExternalLink, 
+  Eye, 
+  ThumbsUp, 
+  MessageCircle, 
+  Clock,
+  Play
+} from "lucide-react";
+import { formatDuration, formatNumber, formatDate } from "@/lib/utils";
 
 /**
  * Normalize any YouTube URL to the canonical long format:
@@ -77,92 +86,142 @@ export function VideoInfoPanel({
   youtubeId,
 }: VideoInfoPanelProps) {
   return (
-    <Card className="h-full flex flex-col">
-      <CardContent>
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+    <Card className="h-full flex flex-col glass-strong rounded-3xl border-white/10 overflow-hidden card-lift">
+      <CardContent className="p-0">
+        {error && (
+          <div className="p-4 m-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+        
         {youtubeId && (
-          <div className="mt-4">
-            {/* Replaced thumbnail img with video embed iframe */}
-            <div className="relative w-full aspect-video rounded-md overflow-hidden shadow-sm">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="absolute top-0 left-0 w-full h-full"
-              ></iframe>
+          <div className="relative">
+            {/* Video Embed with Glow Effect */}
+            <div className="relative p-4">
+              {/* Glow Background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl" />
+              
+              {/* YouTube Embed Container */}
+              <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 group">
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeId}`}
+                  title="YouTube video player"
+                  className="absolute top-0 left-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+                
+                {/* Subtle gradient overlay for depth */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+                
+                {/* Hover Glow Overlay */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 pointer-events-none" />
+              </div>
             </div>
-            {/* <img
-              src={
-                videoMeta?.youtube_thumbnail ||
-                `https://img.youtube.com/vi/${youtubeId}/0.jpg`
-              }
-              alt="YouTube Video Thumbnail"
-              className="w-full rounded-md shadow-sm"
-              referrerPolicy="no-referrer"
-            /> */}
+
+            {/* Video Info Section */}
             {videoMeta && (
-              <div className="mt-2 space-y-1">
-                <h3 className="font-semibold text-lg">{videoMeta.title}</h3>
-                <div className="text-sm text-gray-600">
-                  Channel:{" "}
-                  {videoMeta.channel_title ? (
-                    <span>{videoMeta.channel_title}</span>
-                  ) : null}
+              <div className="p-6 pt-2 space-y-4">
+                {/* Title */}
+                <h3 className="text-xl font-bold text-white leading-tight hover:text-gradient transition-all cursor-pointer">
+                  {videoMeta.title}
+                </h3>
+
+                {/* Channel & Meta Row */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Channel Name from joined channels table */}
+                  {videoMeta.channels?.title && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <span className="text-sm font-medium text-blue-400">
+                        {videoMeta.channels.title}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {videoMeta.published_at && (
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(videoMeta.published_at)}
+                    </span>
+                  )}
                 </div>
-                {videoMeta.published_at && (
-                  <div className="text-xs text-gray-500">
-                    Published:{" "}
-                    {new Date(videoMeta.published_at).toLocaleDateString()}
-                  </div>
-                )}
-                {videoMeta.duration && (
-                  <div className="text-xs text-gray-500">
-                    Duration: {videoMeta.duration}
-                  </div>
-                )}
+
+                {/* Stats Pills */}
+                <div className="flex flex-wrap gap-2">
+                  {videoMeta.view_count !== null && videoMeta.view_count !== undefined && (
+                    <div className="stat-pill">
+                      <Eye className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-300">
+                        {formatNumber(videoMeta.view_count)}
+                      </span>
+                    </div>
+                  )}
+                  {videoMeta.like_count !== null && videoMeta.like_count !== undefined && (
+                    <div className="stat-pill">
+                      <ThumbsUp className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-300">
+                        {formatNumber(videoMeta.like_count)}
+                      </span>
+                    </div>
+                  )}
+                  {videoMeta.comment_count !== null && videoMeta.comment_count !== undefined && (
+                    <div className="stat-pill">
+                      <MessageCircle className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-300">
+                        {formatNumber(videoMeta.comment_count)}
+                      </span>
+                    </div>
+                  )}
+                  {videoMeta.duration && (
+                    <div className="stat-pill">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-300">
+                        {formatDuration(videoMeta.duration)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description with Fade */}
                 {videoMeta.description && (
-                  <div className="text-xs text-gray-700 line-clamp-3">
-                    {videoMeta.description}
+                  <div className="relative">
+                    <p className="text-sm text-gray-400 line-clamp-3 leading-relaxed">
+                      {videoMeta.description}
+                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card/75 to-transparent pointer-events-none" />
                   </div>
                 )}
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {videoMeta.tags &&
-                    Array.isArray(videoMeta.tags) &&
-                    videoMeta.tags.map((tag: string) => (
+
+                {/* Tags */}
+                {videoMeta.tags && Array.isArray(videoMeta.tags) && videoMeta.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {videoMeta.tags.slice(0, 5).map((tag: string) => (
                       <span
                         key={tag}
-                        className="inline-block bg-gray-200 text-gray-700 rounded px-2 py-0.5 text-xs"
+                        className="px-2.5 py-1 text-xs font-medium rounded-full bg-white/5 text-gray-400 border border-white/5 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all cursor-pointer"
                       >
-                        {tag}
+                        #{tag}
                       </span>
                     ))}
-                </div>
-                <div className="flex gap-4 text-xs text-gray-500 mt-1">
-                  {videoMeta.view_count !== null && (
-                    <span>Views: {videoMeta.view_count}</span>
-                  )}
-                  {videoMeta.like_count !== null && (
-                    <span>Likes: {videoMeta.like_count}</span>
-                  )}
-                  {videoMeta.comment_count !== null && (
-                    <span>Comments: {videoMeta.comment_count}</span>
-                  )}
-                </div>
-                <div className="mt-2">
-                  <a
-                    href={`https://www.youtube.com/watch?v=${youtubeId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 underline text-xs"
-                  >
-                    Watch on YouTube
-                  </a>
-                  <span className="text-xs text-gray-400 ml-2">
-                    (YouTube content &copy; respective owners)
-                  </span>
-                </div>
+                    {videoMeta.tags.length > 5 && (
+                      <span className="px-2.5 py-1 text-xs text-muted-foreground">
+                        +{videoMeta.tags.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Watch on YouTube Link */}
+                <a
+                  href={`https://www.youtube.com/watch?v=${youtubeId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors group/link pt-2"
+                >
+                  <ExternalLink className="w-4 h-4 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+                  Watch on YouTube
+                  <span className="text-gray-500 text-xs">(content © respective owners)</span>
+                </a>
               </div>
             )}
           </div>
