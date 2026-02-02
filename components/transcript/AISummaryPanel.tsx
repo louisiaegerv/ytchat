@@ -420,7 +420,7 @@ export function AISummaryPanel({
                 className={cn(
                   "overflow-hidden p-0 gap-0 transition-all duration-300",
                   isFocusMode
-                    ? "!fixed !inset-0 !w-screen !h-screen !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0"
+                    ? "!fixed !inset-0 !w-screen !h-screen !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0 [&>button]:top-[calc(1rem+env(safe-area-inset-top))]"
                     : isFullWidth
                       ? "max-w-6xl w-[95vw] max-h-[90vh]"
                       : "max-w-3xl w-[90vw] max-h-[85vh]",
