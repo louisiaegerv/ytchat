@@ -44,6 +44,9 @@ interface AISummaryPanelProps {
   setModel: (m: string) => void;
   setLoadingSummary: (b: boolean) => void;
   videoId?: string;
+  // External dialog control
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Text size configurations
@@ -62,6 +65,8 @@ export function AISummaryPanel({
   model,
   setModel,
   setLoadingSummary,
+  isOpen: externalIsOpen,
+  onOpenChange,
 }: AISummaryPanelProps) {
   const { videoUuid, aiSummary, setAiSummary } = useVideoContext();
   const videoId = videoUuid || "";
@@ -75,8 +80,12 @@ export function AISummaryPanel({
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isFullWidth, setIsFullWidth] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Use external control if provided, otherwise use internal state
+  const isOpen = externalIsOpen ?? internalIsOpen;
+  const setIsOpen = onOpenChange ?? setInternalIsOpen;
 
   // Detect mobile and set focus mode as default
   useEffect(() => {
@@ -84,7 +93,7 @@ export function AISummaryPanel({
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       // Auto-enable focus mode on mobile when dialog opens
-      if (mobile && isOpen) {
+      if (mobile && (externalIsOpen ?? internalIsOpen)) {
         setIsFocusMode(true);
       }
     };
@@ -149,10 +158,65 @@ export function AISummaryPanel({
     setTimeout(() => setCopied(false), 2000);
   }, [aiSummary]);
 
+  // Simple markdown to HTML converter for printing
+  const markdownToHtml = (markdown: string): string => {
+    let html = markdown
+      // Escape HTML special characters
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Headers
+      .replace(/^###### (.*$)/gim, '<h6>$1</h6>')
+      .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+      .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      // Bold
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')
+      // Italic
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/_(.*?)_/g, '<em>$1</em>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Code blocks
+      .replace(/```[\s\S]*?```/g, (match) => {
+        const code = match.replace(/```/g, '').trim();
+        return `<pre><code>${code}</code></pre>`;
+      })
+      // Blockquotes
+      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+      // Unordered lists
+      .replace(/^\s*[-*+] (.*$)/gim, '<li>$1</li>')
+      // Ordered lists
+      .replace(/^\s*\d+\. (.*$)/gim, '<li>$1</li>')
+      // Line breaks to paragraphs
+      .split('\n\n')
+      .map((para) => {
+        const trimmed = para.trim();
+        if (!trimmed) return '';
+        // Don't wrap if already a block element
+        if (/^<(h[1-6]|pre|blockquote|li)/i.test(trimmed)) {
+          return trimmed;
+        }
+        // Wrap list items in ul
+        if (trimmed.includes('<li>')) {
+          return `<ul>${trimmed}</ul>`;
+        }
+        return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+      })
+      .join('\n');
+    
+    return html;
+  };
+
   const handlePrint = useCallback(() => {
     if (!aiSummary) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
+
+    const htmlContent = markdownToHtml(aiSummary);
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -168,14 +232,23 @@ export function AISummaryPanel({
               padding: 2rem;
               color: #333;
             }
-            h1, h2, h3 { color: #111; }
-            code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
+            h1, h2, h3 { color: #111; margin-top: 1.5em; margin-bottom: 0.5em; }
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.5em; }
+            h3 { font-size: 1.25em; }
+            p { margin-bottom: 1em; }
+            code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
             pre { background: #f4f4f4; padding: 1em; overflow-x: auto; border-radius: 6px; }
-            blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 1em; color: #666; }
+            pre code { padding: 0; background: none; }
+            blockquote { border-left: 4px solid #ddd; margin: 0 0 1em 0; padding-left: 1em; color: #666; }
+            ul, ol { margin-bottom: 1em; padding-left: 2em; }
+            li { margin-bottom: 0.25em; }
+            strong { font-weight: 600; }
+            em { font-style: italic; }
           </style>
         </head>
         <body>
-          ${aiSummary}
+          ${htmlContent}
         </body>
       </html>
     `);
@@ -405,20 +478,9 @@ export function AISummaryPanel({
           <div className="relative">
             {/* Expand Dialog */}
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="absolute top-0 right-0 z-10 bg-white/5 hover:bg-white/10 border border-white/10"
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Expand summary"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </Button>
-              </DialogTrigger>
-
               <DialogContent
                 className={cn(
-                  "overflow-hidden p-0 gap-0 transition-all duration-300",
+                  "overflow-visible p-0 gap-0 transition-all duration-300 flex flex-col",
                   isFocusMode
                     ? "!fixed !inset-0 !w-screen !h-screen !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0 [&>button]:top-[calc(1rem+env(safe-area-inset-top))]"
                     : isFullWidth
@@ -466,21 +528,27 @@ export function AISummaryPanel({
                   </DialogHeader>
                 )}
 
+                {/* Scrollable wrapper - keeps overflow contained but allows tooltips at header level */}
+                <div className={cn(
+                  "flex-1 overflow-y-auto",
+                  isFocusMode ? "h-screen" : "max-h-[calc(90vh-4rem)]",
+                  !isFocusMode && !isFullWidth && "max-h-[calc(85vh-4rem)]"
+                )}>
                 {/* Content */}
                 <div
                   className={cn(
-                    "overflow-y-auto transition-all duration-300",
+                    "transition-all duration-300 text-white",
                     isFocusMode
                       ? isMobile
-                        ? "pt-4 pb-24 px-4 h-screen"
-                        : "pt-32 pb-24 px-8 h-screen"
+                        ? "pt-4 pb-24 px-4"
+                        : "pt-32 pb-24 px-8"
                       : "px-6 py-6",
                   )}
                   style={{ scrollbarWidth: "thin" }}
                 >
                   <div
                     className={cn(
-                      "prose dark:prose-invert mx-auto transition-all duration-300",
+                      "prose prose-invert mx-auto transition-all duration-300",
                       TEXT_SIZES[textSize].prose,
                       lineHeight === "tight" && "leading-tight",
                       lineHeight === "normal" && "leading-normal",
@@ -518,6 +586,7 @@ export function AISummaryPanel({
                     </div>
                   )}
                 </div>
+                </div>
 
                 {/* Floating Toolbar in Focus Mode */}
                 {isFocusMode && (
@@ -529,7 +598,7 @@ export function AISummaryPanel({
             </Dialog>
 
             {/* Inline Summary */}
-            <div className="prose prose-invert prose-sm max-w-none pr-12">
+            <div className="prose prose-invert prose-sm max-w-none text-white">
               <Markdown>{aiSummary}</Markdown>
             </div>
           </div>

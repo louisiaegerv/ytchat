@@ -17,6 +17,7 @@ import { Providers } from "./providers";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Toaster } from "sonner";
+import { LoadingProvider } from "@/components/LoadingProvider";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -33,6 +34,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
+  themeColor: "#0a0a0a",
 };
 
 const geistSans = Geist({
@@ -62,26 +64,28 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           {isAuthenticated ? (
-            <SidebarProvider>
-              <Providers>
-                <AppSidebar />
-                {/* <SidebarInset className="group/sidebar-inset"> */}
-                {/* Main content */}
-                <main
-                  className="flex-1 flex flex-col min-h-screen pb-20 lg:pb-0"
-                  style={{ scrollbarWidth: "none" }}
-                >
-                  <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
-                    {children}
-                  </div>
-                </main>
+            <LoadingProvider>
+              <SidebarProvider>
+                <Providers>
+                  <AppSidebar />
+                  {/* <SidebarInset className="group/sidebar-inset"> */}
+                  {/* Main content */}
+                  <main
+                    className="flex-1 flex flex-col min-h-screen pb-20 lg:pb-0"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    <div className="container mx-auto p-4 lg:p-8 max-w-7xl">
+                      {children}
+                    </div>
+                  </main>
 
-                {/* Bottom Navigation - Mobile only */}
-                <BottomNavigation />
-                {/* </SidebarInset> */}
-              </Providers>
-              <Toaster />
-            </SidebarProvider>
+                  {/* Bottom Navigation - Mobile only */}
+                  <BottomNavigation />
+                  {/* </SidebarInset> */}
+                </Providers>
+                <Toaster />
+              </SidebarProvider>
+            </LoadingProvider>
           ) : (
             <main className="min-h-screen flex flex-col items-center justify-center">
               {children}

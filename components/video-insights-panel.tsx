@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Copy, Check, TextSearch, X, Sparkles, Brain, FileText, MessageSquare } from "lucide-react";
+import { Copy, Check, TextSearch, X, Sparkles, Brain, FileText, MessageSquare, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ export function VideoInsightsPanel() {
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [model, setModel] = useState<string>(models[0].id);
+  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
 
   // Chat session state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -360,30 +361,41 @@ export function VideoInsightsPanel() {
                         <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                         <span className="text-xs font-medium text-green-400">AI Generated</span>
                       </div>
-                      <Button
-                        onClick={() => {
-                          const summaryText = aiSummary || "No summary available.";
-                          navigator.clipboard.writeText(summaryText);
-                          setCopiedSummary(true);
-                          setTimeout(() => setCopiedSummary(false), 2000);
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        disabled={!aiSummary}
-                        className="h-8 hover:bg-white/10"
-                      >
-                        {copiedSummary ? (
-                          <>
-                            <Check className="h-4 w-4 mr-2 text-green-400" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          onClick={() => setIsSummaryDialogOpen(true)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 hover:bg-white/10"
+                        >
+                          <Maximize2 className="h-4 w-4 mr-2" />
+                          Expand
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            const summaryText = aiSummary || "No summary available.";
+                            navigator.clipboard.writeText(summaryText);
+                            setCopiedSummary(true);
+                            setTimeout(() => setCopiedSummary(false), 2000);
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          disabled={!aiSummary}
+                          className="h-8 hover:bg-white/10"
+                        >
+                          {copiedSummary ? (
+                            <>
+                              <Check className="h-4 w-4 mr-2 text-green-400" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   )}
 
@@ -397,6 +409,8 @@ export function VideoInsightsPanel() {
                         setModel={setModel}
                         setLoadingSummary={setLoadingSummary}
                         videoId={videoUuid || ""}
+                        isOpen={isSummaryDialogOpen}
+                        onOpenChange={setIsSummaryDialogOpen}
                       />
                     </div>
                   </ScrollArea>

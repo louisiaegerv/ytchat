@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLoading } from "@/components/LoadingProvider";
 import {
   Folder,
   Pin,
   GripVertical,
   ChevronDown,
-  ChevronUp,
-  Info,
+  ChevronRight,
+  Clock,
 } from "lucide-react";
 import {
   Collapsible,
@@ -21,13 +22,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuAction,
 } from "@/components/ui/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   DndContext,
   closestCenter,
@@ -44,6 +39,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 import type {
   PinnedCollectionDetails,
   CollectionWithLastAccessed,
@@ -87,40 +83,52 @@ function SortablePinnedCollection({
     ? item.collections[0]?.name
     : (item.collections as any)?.name || "Unnamed Collection";
 
+  const { startLoading } = useLoading();
+  
   return (
     <SidebarMenuItem ref={setNodeRef} style={style}>
-      <SidebarMenuButton asChild>
-        <Link href={`/collections/${item.collection_id}`}>
-          <Folder className="text-blue-500" />
-          <span className="truncate">{collectionName}</span>
+      <div className={cn(
+        "w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all duration-200 sidebar-nav-item group",
+        "text-gray-300 hover:bg-white/5 hover:text-white",
+      )}>
+        <Folder className="w-4 h-4 text-blue-400 flex-shrink-0" />
+        <Link
+          href={`/collections/${item.collection_id}`}
+          onClick={() => startLoading(`/collections/${item.collection_id}`)}
+          className="truncate flex-1"
+        >
+          {collectionName}
+        </Link>
+        {/* Action buttons container */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Pin button - always visible */}
           <button
             onClick={(e) => {
               e.preventDefault();
               onUnpin(item.collection_id);
             }}
-            className="ml-auto"
+            className="p-1.5 rounded-md opacity-60 hover:opacity-100 hover:bg-white/10 transition-all"
             disabled={syncingCollectionId === item.collection_id}
             aria-label="Unpin collection"
           >
             <Pin
-              className={`h-3 w-3 text-primary fill-current ${
-                syncingCollectionId === item.collection_id
-                  ? "animate-pulse"
-                  : ""
-              }`}
+              className={cn(
+                "h-3.5 w-3.5 text-blue-400 fill-current",
+                syncingCollectionId === item.collection_id && "animate-pulse",
+              )}
             />
           </button>
-        </Link>
-      </SidebarMenuButton>
-      <SidebarMenuAction
-        showOnHover
-        {...attributes}
-        {...listeners}
-        className="cursor-move"
-      >
-        <GripVertical />
-        <span className="sr-only">Drag to reorder</span>
-      </SidebarMenuAction>
+          {/* Drag handle - visible on hover */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="p-1.5 rounded-md opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-white/10 cursor-move transition-all"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-3.5 w-3.5 text-gray-500" />
+          </button>
+        </div>
+      </div>
     </SidebarMenuItem>
   );
 }
@@ -135,16 +143,16 @@ export function NavCollections({
 }: NavCollectionsProps) {
   const [isPinnedOpen, setIsPinnedOpen] = useState(true);
   const [isRecentOpen, setIsRecentOpen] = useState(true);
+  const { startLoading } = useLoading();
 
   // Create a Set of pinned collection IDs for O(1) lookup
   const pinnedCollectionIds = new Set(
-    pinnedCollections.map((p) => p.collection_id)
+    pinnedCollections.map((p) => p.collection_id),
   );
 
   // Filter recent collections to exclude any that are currently pinned
-  // This prevents race conditions where a collection appears in both sections
   const filteredRecentCollections = recentCollections.filter(
-    (collection) => !pinnedCollectionIds.has(collection.id)
+    (collection) => !pinnedCollectionIds.has(collection.id),
   );
 
   // DnD sensors
@@ -181,20 +189,27 @@ export function NavCollections({
   };
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Collections</SidebarGroupLabel>
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden px-0 py-0">
+      <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        Collections
+      </SidebarGroupLabel>
 
       {/* Pinned Collections - Collapsible */}
       <Collapsible open={isPinnedOpen} onOpenChange={setIsPinnedOpen}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1 text-sm font-medium hover:bg-muted/50 rounded transition-colors">
+        <CollapsibleTrigger
+          className={cn(
+            "w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+            "text-gray-400 hover:text-white hover:bg-white/5",
+          )}
+        >
           <span>Pinned</span>
           {isPinnedOpen ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
             <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent className="mt-0.5">
           {pinnedCollections.length > 0 ? (
             <DndContext
               sensors={sensors}
@@ -205,7 +220,7 @@ export function NavCollections({
                 items={pinnedCollections.map((item) => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <SidebarMenu>
+                <SidebarMenu className="gap-0">
                   {pinnedCollections.map((item) => (
                     <SortablePinnedCollection
                       key={item.id}
@@ -219,21 +234,10 @@ export function NavCollections({
             </DndContext>
           ) : (
             /* Empty State */
-            <div className="px-2 py-3 text-center">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center justify-center gap-1 text-muted-foreground cursor-help">
-                    <Info className="h-4 w-4" />
-                    <span className="text-xs">No pinned collections</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>
-                    Pin collections from the collection detail page or Library
-                    page for quick access
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+            <div className="px-4 py-3 text-center">
+              <div className="text-xs text-gray-500 italic">
+                No pinned collections
+              </div>
             </div>
           )}
         </CollapsibleContent>
@@ -241,45 +245,58 @@ export function NavCollections({
 
       {/* Recent Collections - Collapsible */}
       {filteredRecentCollections.length > 0 && (
-        <Collapsible open={isRecentOpen} onOpenChange={setIsRecentOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1 text-sm font-medium hover:bg-muted/50 rounded transition-colors">
+        <Collapsible
+          open={isRecentOpen}
+          onOpenChange={setIsRecentOpen}
+          className="mt-1"
+        >
+          <CollapsibleTrigger
+            className={cn(
+              "w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+              "text-gray-400 hover:text-white hover:bg-white/5",
+            )}
+          >
             <span>Recent</span>
             {isRecentOpen ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
               <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
             )}
           </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenu>
+          <CollapsibleContent className="mt-0.5">
+            <SidebarMenu className="gap-0">
               {filteredRecentCollections.map((collection) => (
                 <SidebarMenuItem key={collection.id}>
-                  <SidebarMenuButton asChild>
-                    <Link href={`/collections/${collection.id}`}>
-                      <Folder className="text-muted-foreground" />
-                      <span className="truncate">
-                        {collection.name || "Unnamed Collection"}
-                      </span>
-                      {/* Unfilled pin icon - clickable to pin */}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onPin(collection.id);
-                        }}
-                        className="ml-auto opacity-50 hover:opacity-100 transition-opacity"
-                        disabled={syncingCollectionId === collection.id}
-                        aria-label="Pin collection"
-                      >
-                        <Pin
-                          className={`h-3 w-3 text-muted-foreground ${
-                            syncingCollectionId === collection.id
-                              ? "animate-pulse"
-                              : ""
-                          }`}
-                        />
-                      </button>
+                  <div className={cn(
+                    "w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200 sidebar-nav-item group",
+                    "text-gray-300 hover:bg-white/5 hover:text-white",
+                  )}>
+                    <Folder className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <Link
+                      href={`/collections/${collection.id}`}
+                      onClick={() => startLoading(`/collections/${collection.id}`)}
+                      className="truncate flex-1"
+                    >
+                      {collection.name || "Unnamed Collection"}
                     </Link>
-                  </SidebarMenuButton>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onPin(collection.id);
+                      }}
+                      className="p-1 rounded-md opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-white/10 transition-all"
+                      disabled={syncingCollectionId === collection.id}
+                      aria-label="Pin collection"
+                    >
+                      <Pin
+                        className={cn(
+                          "h-3 w-3 text-gray-400 hover:text-blue-400",
+                          syncingCollectionId === collection.id &&
+                            "animate-pulse",
+                        )}
+                      />
+                    </button>
+                  </div>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

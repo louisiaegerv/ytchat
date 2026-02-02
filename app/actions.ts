@@ -53,7 +53,7 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/login", error.message);
   }
 
-  return redirect("/capture");
+  return redirect("/");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -512,6 +512,7 @@ export async function getCollectionVideos(
         title,
         youtube_url,
         youtube_id,
+        youtube_thumbnail,
         created_at,
         published_at,
         duration,
@@ -538,6 +539,7 @@ export async function getCollectionVideos(
       title: video.title,
       youtube_url: video.youtube_url,
       youtube_id: video.youtube_id,
+      youtube_thumbnail: video.youtube_thumbnail,
       created_at: video.created_at,
       published_at: video.published_at,
       duration: video.duration as string | null, // duration is stored as text in database

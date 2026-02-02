@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, type LucideIcon, Plus } from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -9,10 +9,8 @@ import {
 import {
   SidebarGroup,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -24,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useLoading } from "@/components/LoadingProvider";
+import Link from "next/link";
 
 export function NavMain({
   items,
@@ -53,11 +53,18 @@ export function NavMain({
   }[];
 }) {
   const { state } = useSidebar();
+  const { startLoading } = useLoading();
   const isExpanded = state === "expanded";
 
+  const handleNavClick = (url?: string) => {
+    if (url) {
+      startLoading(url);
+    }
+  };
+
   return (
-    <SidebarGroup className="px-2">
-      <SidebarMenu className="gap-1">
+    <SidebarGroup className="px-0 py-0">
+      <SidebarMenu className="gap-0">
         {items.map((item) =>
           item.dropdown ? (
             <SidebarMenuItem key={item.title}>
@@ -66,56 +73,44 @@ export function NavMain({
                 onOpenChange={item.dropdown.onOpenChange}
               >
                 <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton
+                  <button
                     ref={item.dropdown.triggerRef}
-                    tooltip={item.title}
                     className={cn(
-                      "h-11 transition-all duration-200",
-                      // Special styling for "New" button - gradient background
-                      item.title === "New" && [
-                        "text-center bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600",
-                        "text-white border-0 shadow-lg shadow-blue-500/20",
-                        "hover:text-white hover:shadow-blue-500/30",
-                        "data-[state=open]:from-blue-600 data-[state=open]:to-violet-600",
-                      ],
+                      "w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 sidebar-nav-item",
+                      isExpanded ? "px-4" : "px-0 justify-center",
+                      item.isActive
+                        ? "active text-white"
+                        : "text-gray-400 hover:text-white hover:bg-white/5",
                     )}
                   >
-                    {item.title === "New" ? (
-                      <Plus className="h-4 w-4" />
-                    ) : (
-                      item.icon && <item.icon />
+                    {item.icon && (
+                      <item.icon
+                        className={cn(
+                          "w-5 h-5 flex-shrink-0",
+                          item.isActive ? "text-blue-400" : "",
+                        )}
+                      />
                     )}
-                    <span
-                      className={cn(item.title === "New" && "font-semibold")}
-                    >
+                    <span className={cn("flex-1 text-left", !isExpanded && "hidden")}>
                       {item.title}
                     </span>
                     {item.shortcut && (
-                      <KbdGroup
-                        className={cn("ml-auto", !isExpanded && "hidden")}
-                      >
-                        <Kbd
-                          className={cn(
-                            item.title === "New" &&
-                              "border-white/30 bg-white/10 text-white/80",
-                          )}
-                        >
-                          {item.shortcut}
-                        </Kbd>
+                      <KbdGroup className={cn("ml-auto", !isExpanded && "hidden")}>
+                        <Kbd>{item.shortcut}</Kbd>
                       </KbdGroup>
                     )}
-                  </SidebarMenuButton>
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   side="bottom"
                   align="start"
-                  className="w-60"
+                  className="w-56 glass-strong border-white/10"
                 >
                   {item.dropdown.options.map((option) => (
                     <DropdownMenuItem
                       key={option.label}
                       onClick={option.onClick}
-                      className="cursor-pointer"
+                      className="cursor-pointer py-2 text-sm"
                     >
                       <option.icon className="mr-2 h-4 w-4" />
                       <span>{option.label}</span>
@@ -130,27 +125,45 @@ export function NavMain({
           ) : item.items && item.items.length > 0 ? (
             <Collapsible
               key={item.title}
-              asChild
               defaultOpen={item.isActive}
               className="group/collapsible"
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={item.title}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  </SidebarMenuButton>
+                  <button
+                    className={cn(
+                      "w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 sidebar-nav-item",
+                      isExpanded ? "px-4" : "px-0 justify-center",
+                      item.isActive
+                        ? "active text-white"
+                        : "text-gray-400 hover:text-white hover:bg-white/5",
+                    )}
+                  >
+                    {item.icon && (
+                      <item.icon
+                        className={cn(
+                          "w-5 h-5 flex-shrink-0",
+                          item.isActive ? "text-blue-400" : "",
+                        )}
+                      />
+                    )}
+                    <span className={cn("flex-1 text-left", !isExpanded && "hidden")}>
+                      {item.title}
+                    </span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-gray-500 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <SidebarMenuSub>
+                  <SidebarMenuSub className="ml-4 border-l border-white/10 pl-3 pr-0 mt-1 space-y-0.5">
                     {item.items.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
-                            <span>{subItem.title}</span>
-                          </a>
-                        </SidebarMenuSubButton>
+                        <a
+                          href={subItem.url}
+                          onClick={() => handleNavClick(subItem.url)}
+                          className="h-8 rounded-md text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center px-2"
+                        >
+                          <span>{subItem.title}</span>
+                        </a>
                       </SidebarMenuSubItem>
                     ))}
                   </SidebarMenuSub>
@@ -160,39 +173,68 @@ export function NavMain({
           ) : (
             <SidebarMenuItem key={item.title}>
               {item.onClick ? (
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={item.isActive}
+                <button
                   onClick={item.onClick}
+                  className={cn(
+                    "w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden sidebar-nav-item",
+                    isExpanded ? "px-4 text-left" : "px-0 justify-center",
+                    item.isActive
+                      ? "active text-white"
+                      : "text-gray-400 hover:text-white hover:bg-white/5",
+                  )}
                 >
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
+                  {item.isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent pointer-events-none" />
+                  )}
+                  {item.icon && (
+                    <item.icon
+                      className={cn(
+                        "relative z-10 w-5 h-5 flex-shrink-0",
+                        item.isActive ? "text-blue-400" : "",
+                      )}
+                    />
+                  )}
+                  <span className={cn("relative z-10 flex-1", !isExpanded && "hidden")}>
+                    {item.title}
+                  </span>
                   {item.shortcut && (
-                    <KbdGroup
-                      className={cn("ml-auto", !isExpanded && "hidden")}
-                    >
+                    <KbdGroup className={cn("relative z-10 ml-auto", !isExpanded && "hidden")}>
                       <Kbd>{item.shortcut}</Kbd>
                     </KbdGroup>
                   )}
-                </SidebarMenuButton>
+                </button>
               ) : (
-                <SidebarMenuButton
-                  asChild
-                  tooltip={item.title}
-                  isActive={item.isActive}
+                <Link
+                  href={item.url || "#"}
+                  onClick={() => handleNavClick(item.url)}
+                  className={cn(
+                    "w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative overflow-hidden sidebar-nav-item",
+                    isExpanded ? "px-4" : "px-0 justify-center",
+                    item.isActive
+                      ? "active text-white"
+                      : "text-gray-400 hover:text-white hover:bg-white/5",
+                  )}
                 >
-                  <a href={item.url} className="flex items-center gap-2 w-full">
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                    {item.shortcut && (
-                      <KbdGroup
-                        className={cn("ml-auto", !isExpanded && "hidden")}
-                      >
-                        <Kbd>{item.shortcut}</Kbd>
-                      </KbdGroup>
-                    )}
-                  </a>
-                </SidebarMenuButton>
+                  {item.isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent pointer-events-none" />
+                  )}
+                  {item.icon && (
+                    <item.icon
+                      className={cn(
+                        "relative z-10 w-5 h-5 flex-shrink-0",
+                        item.isActive ? "text-blue-400" : "",
+                      )}
+                    />
+                  )}
+                  <span className={cn("relative z-10 flex-1", !isExpanded && "hidden")}>
+                    {item.title}
+                  </span>
+                  {item.shortcut && (
+                    <KbdGroup className={cn("ml-auto", !isExpanded && "hidden")}>
+                      <Kbd>{item.shortcut}</Kbd>
+                    </KbdGroup>
+                  )}
+                </Link>
               )}
             </SidebarMenuItem>
           ),

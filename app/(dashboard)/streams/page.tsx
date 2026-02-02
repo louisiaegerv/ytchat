@@ -98,12 +98,6 @@ export default function StreamsPage() {
               Automated video collection from YouTube
             </p>
           </div>
-          <Link href="/streams/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Stream
-            </Button>
-          </Link>
         </div>
 
         {/* Empty State */}
@@ -113,8 +107,8 @@ export default function StreamsPage() {
           </div>
           <h2 className="text-xl font-semibold mb-2">No streams yet</h2>
           <p className="text-muted-foreground max-w-sm mb-6">
-            Streams automatically collect YouTube videos based on your search criteria. 
-            Create your first stream to start building collections.
+            Streams automatically collect YouTube videos based on your search
+            criteria. Create your first stream to start building collections.
           </p>
           <Link href="/streams/new">
             <Button>

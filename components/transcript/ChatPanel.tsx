@@ -280,7 +280,7 @@ export function ChatPanel({
     inputRef,
   }: {
     inFocusMode?: boolean;
-    inputRef?: React.RefObject<HTMLInputElement>;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
   }) => (
     <>
       {/* Messages Area */}

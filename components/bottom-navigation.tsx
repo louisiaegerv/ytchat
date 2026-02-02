@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  Home,
-  BookOpen,
+  LayoutDashboard,
+  Video,
   Plus,
   RefreshCw,
   MoreHorizontal,
@@ -35,7 +35,7 @@ interface QuickAction {
 
 /**
  * Mobile-First Bottom Navigation for Dashboard Architecture
- * 
+ *
  * Tabs: Home (Dashboard), Library, FAB (Add), Streams, More
  */
 export function BottomNavigation() {
@@ -136,22 +136,29 @@ export function BottomNavigation() {
                 "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-200",
                 isActive("/dashboard")
                   ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <div className={cn(
-                "relative",
-                isActive("/dashboard") && "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full"
-              )}>
-                <Home className={cn(
-                  "w-5 h-5 transition-transform duration-200",
-                  isActive("/dashboard") && "scale-110"
-                )} />
+              <div
+                className={cn(
+                  "relative",
+                  isActive("/dashboard") &&
+                    "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+                )}
+              >
+                <LayoutDashboard
+                  className={cn(
+                    "w-5 h-5 transition-transform duration-200",
+                    isActive("/dashboard") && "scale-110",
+                  )}
+                />
               </div>
-              <span className={cn(
-                "text-[10px] font-medium transition-all duration-200",
-                isActive("/dashboard") && "text-primary"
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium transition-all duration-200",
+                  isActive("/dashboard") && "text-primary",
+                )}
+              >
                 Home
               </span>
             </button>
@@ -164,22 +171,29 @@ export function BottomNavigation() {
                 "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-200",
                 isActive("/videos")
                   ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <div className={cn(
-                "relative",
-                isActive("/videos") && "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full"
-              )}>
-                <BookOpen className={cn(
-                  "w-5 h-5 transition-transform duration-200",
-                  isActive("/videos") && "scale-110"
-                )} />
+              <div
+                className={cn(
+                  "relative",
+                  isActive("/videos") &&
+                    "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+                )}
+              >
+                <Video
+                  className={cn(
+                    "w-5 h-5 transition-transform duration-200",
+                    isActive("/videos") && "scale-110",
+                  )}
+                />
               </div>
-              <span className={cn(
-                "text-[10px] font-medium transition-all duration-200",
-                isActive("/videos") && "text-primary"
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium transition-all duration-200",
+                  isActive("/videos") && "text-primary",
+                )}
+              >
                 Library
               </span>
             </button>
@@ -205,22 +219,29 @@ export function BottomNavigation() {
                 "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-200",
                 isActive("/streams")
                   ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <div className={cn(
-                "relative",
-                isActive("/streams") && "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full"
-              )}>
-                <RefreshCw className={cn(
-                  "w-5 h-5 transition-transform duration-200",
-                  isActive("/streams") && "scale-110"
-                )} />
+              <div
+                className={cn(
+                  "relative",
+                  isActive("/streams") &&
+                    "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+                )}
+              >
+                <RefreshCw
+                  className={cn(
+                    "w-5 h-5 transition-transform duration-200",
+                    isActive("/streams") && "scale-110",
+                  )}
+                />
               </div>
-              <span className={cn(
-                "text-[10px] font-medium transition-all duration-200",
-                isActive("/streams") && "text-primary"
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium transition-all duration-200",
+                  isActive("/streams") && "text-primary",
+                )}
+              >
                 Streams
               </span>
             </button>
@@ -232,23 +253,32 @@ export function BottomNavigation() {
               "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-200",
               isActive("/reports") || isActive("/settings")
                 ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
             onClick={() => setIsMoreOpen(true)}
           >
-            <div className={cn(
-              "relative",
-              (isActive("/reports") || isActive("/settings")) && "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full"
-            )}>
-              <MoreHorizontal className={cn(
-                "w-5 h-5 transition-transform duration-200",
-                (isActive("/reports") || isActive("/settings")) && "scale-110"
-              )} />
+            <div
+              className={cn(
+                "relative",
+                (isActive("/reports") || isActive("/settings")) &&
+                  "after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+              )}
+            >
+              <MoreHorizontal
+                className={cn(
+                  "w-5 h-5 transition-transform duration-200",
+                  (isActive("/reports") || isActive("/settings")) &&
+                    "scale-110",
+                )}
+              />
             </div>
-            <span className={cn(
-              "text-[10px] font-medium transition-all duration-200",
-              (isActive("/reports") || isActive("/settings")) && "text-primary"
-            )}>
+            <span
+              className={cn(
+                "text-[10px] font-medium transition-all duration-200",
+                (isActive("/reports") || isActive("/settings")) &&
+                  "text-primary",
+              )}
+            >
               More
             </span>
           </button>
@@ -259,11 +289,11 @@ export function BottomNavigation() {
       {isFabOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200 md:hidden"
             onClick={() => setIsFabOpen(false)}
           />
-          
+
           {/* Bottom Sheet */}
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl border-t border-border/50 animate-in slide-in-from-bottom duration-300 md:hidden">
             {/* Handle bar */}
@@ -280,7 +310,9 @@ export function BottomNavigation() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">Quick Actions</h3>
-                    <p className="text-sm text-muted-foreground">What would you like to do?</p>
+                    <p className="text-sm text-muted-foreground">
+                      What would you like to do?
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -307,25 +339,33 @@ export function BottomNavigation() {
                         "w-full group p-4 rounded-xl border transition-all duration-300 text-left",
                         isSelected
                           ? "border-primary/50 bg-primary/5"
-                          : "border-border/50 bg-secondary/30 active:scale-[0.98]"
+                          : "border-border/50 bg-secondary/30 active:scale-[0.98]",
                       )}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300",
-                          action.bgColor,
-                          isSelected && "scale-110"
-                        )}>
+                        <div
+                          className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300",
+                            action.bgColor,
+                            isSelected && "scale-110",
+                          )}
+                        >
                           <Icon className={cn("w-6 h-6", action.iconColor)} />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-white">{action.title}</h4>
-                          <p className="text-sm text-muted-foreground">{action.description}</p>
+                          <h4 className="font-semibold text-white">
+                            {action.title}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {action.description}
+                          </p>
                         </div>
-                        <ArrowRight className={cn(
-                          "w-5 h-5 text-muted-foreground transition-all duration-300",
-                          isSelected && "text-primary translate-x-1"
-                        )} />
+                        <ArrowRight
+                          className={cn(
+                            "w-5 h-5 text-muted-foreground transition-all duration-300",
+                            isSelected && "text-primary translate-x-1",
+                          )}
+                        />
                       </div>
                     </button>
                   );
@@ -343,11 +383,11 @@ export function BottomNavigation() {
       {isMoreOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200 md:hidden"
             onClick={() => setIsMoreOpen(false)}
           />
-          
+
           {/* Bottom Sheet */}
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl border-t border-border/50 animate-in slide-in-from-bottom duration-300 md:hidden">
             {/* Handle bar */}
@@ -364,7 +404,9 @@ export function BottomNavigation() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">More Options</h3>
-                    <p className="text-sm text-muted-foreground">Additional features</p>
+                    <p className="text-sm text-muted-foreground">
+                      Additional features
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -387,7 +429,9 @@ export function BottomNavigation() {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-white">Reports</h4>
-                        <p className="text-sm text-muted-foreground">View your AI reports</p>
+                        <p className="text-sm text-muted-foreground">
+                          View your AI reports
+                        </p>
                       </div>
                       <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                     </div>
@@ -402,7 +446,9 @@ export function BottomNavigation() {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-white">Settings</h4>
-                        <p className="text-sm text-muted-foreground">Manage your preferences</p>
+                        <p className="text-sm text-muted-foreground">
+                          Manage your preferences
+                        </p>
                       </div>
                       <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                     </div>

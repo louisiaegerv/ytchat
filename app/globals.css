@@ -53,6 +53,7 @@
   }
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -124,6 +125,62 @@
     filter: blur(10px);
     z-index: -1;
     animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  /* Sidebar Styles - Matching Reference */
+  [data-slot="sidebar"] {
+    --sidebar-width: 16rem;
+    --sidebar-background: 220 40% 10% / 0.6;
+  }
+
+  /* Main sidebar container - glass effect override */
+  div[data-sidebar="sidebar"] {
+    background-color: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: none !important;
+  }
+
+  /* Hide sidebar scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Sidebar Navigation Item Hover Effect - Left Border Animation */
+  .sidebar-nav-item {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sidebar-nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+    border-radius: 0 2px 2px 0;
+    transition: height 0.3s ease;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  }
+
+  .sidebar-nav-item:hover::before {
+    height: 40%;
+  }
+
+  .sidebar-nav-item.active::before {
+    height: 60%;
+  }
+
+  .sidebar-nav-item.active {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 100%);
   }
 
   /* Nav Item Glow */
