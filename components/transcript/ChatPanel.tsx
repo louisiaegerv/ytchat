@@ -9,20 +9,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { models } from "@/utils/openrouter";
 import type { ChatMessage } from "@/types/chat";
 import type { TranscriptEntry } from "@/utils/transcriptUtils";
-import { 
-  Bot, 
-  MessageSquare, 
-  Send, 
+import {
+  Bot,
+  MessageSquare,
+  Send,
   Trash2,
   Sparkles,
   ChevronLeft,
-  Loader2
+  Loader2,
+  Focus,
+  X,
+  Maximize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useChatMessagesQuery, useSaveChatMessageMutation } from "@/hooks/queries/useChatSessionsQuery";
+import {
+  useChatMessagesQuery,
+  useSaveChatMessageMutation,
+} from "@/hooks/queries/useChatSessionsQuery";
 import { generateChatTitle } from "@/utils/titleGenerator";
 
 interface ChatPanelProps {
@@ -59,16 +66,35 @@ export function ChatPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const focusInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Auto-focus input when entering focus mode
+  useEffect(() => {
+    if (isFocusMode && focusInputRef.current) {
+      setTimeout(() => focusInputRef.current?.focus(), 100);
+    }
+  }, [isFocusMode]);
 
   // Fetch messages from database (only for saved sessions)
-  const { data: dbMessages, isLoading: isLoadingMessages } = useChatMessagesQuery(
-    isTemporary ? null : sessionId
-  );
+  const { data: dbMessages, isLoading: isLoadingMessages } =
+    useChatMessagesQuery(isTemporary ? null : sessionId);
   const saveMessage = useSaveChatMessageMutation();
 
   // Use local messages for temporary sessions, database messages for saved sessions
-  const messages = isTemporary ? localMessages : (dbMessages || []);
+  const messages = isTemporary ? localMessages : dbMessages || [];
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -85,7 +111,7 @@ export function ChatPanel({
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    
+
     const userMessage = input.trim();
     setInput("");
     setIsLoading(true);
@@ -97,15 +123,18 @@ export function ChatPanel({
       content: userMessage,
       created_at: new Date().toISOString(),
     };
-    
+
     if (isTemporary) {
-      setLocalMessages(prev => [...prev, userMsg]);
+      setLocalMessages((prev) => [...prev, userMsg]);
     }
 
     try {
       // Get AI response
-      const response = await onSendMessage(userMessage, isTemporary ? null : sessionId);
-      
+      const response = await onSendMessage(
+        userMessage,
+        isTemporary ? null : sessionId,
+      );
+
       // Add AI response to UI
       const aiMsg: ChatMessage = {
         id: `temp-assistant-${Date.now()}`,
@@ -115,20 +144,20 @@ export function ChatPanel({
       };
 
       if (isTemporary) {
-        setLocalMessages(prev => [...prev, aiMsg]);
-        
+        setLocalMessages((prev) => [...prev, aiMsg]);
+
         // Generate title based on first exchange
         setIsGeneratingTitle(true);
         try {
           const title = await generateChatTitle(userMessage, response);
-          
+
           // Create session with generated title and messages
           const { createClient } = await import("@/utils/supabase/client");
           const supabase = createClient();
           const { data: userData } = await supabase.auth.getUser();
-          
+
           if (!userData?.user) throw new Error("Not authenticated");
-          
+
           // Create session
           const { data: session, error: sessionError } = await supabase
             .from("chat_sessions")
@@ -139,9 +168,9 @@ export function ChatPanel({
             })
             .select()
             .single();
-          
+
           if (sessionError) throw sessionError;
-          
+
           // Save messages to the new session
           const { error: chatError } = await supabase.from("chats").insert([
             {
@@ -159,9 +188,9 @@ export function ChatPanel({
               response: response,
             },
           ]);
-          
+
           if (chatError) throw chatError;
-          
+
           // Notify parent about the new session
           if (onSessionCreated) {
             onSessionCreated(session.id);
@@ -179,21 +208,23 @@ export function ChatPanel({
             const { createClient } = await import("@/utils/supabase/client");
             const supabase = createClient();
             const { data: userData } = await supabase.auth.getUser();
-            
+
             if (!userData?.user) throw new Error("Not authenticated");
-            
+
             const { data: session, error: sessionError } = await supabase
               .from("chat_sessions")
               .insert({
                 video_id: videoId,
                 user_id: userData.user.id,
-                title: userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : ""),
+                title:
+                  userMessage.slice(0, 50) +
+                  (userMessage.length > 50 ? "..." : ""),
               })
               .select()
               .single();
-            
+
             if (sessionError) throw sessionError;
-            
+
             await supabase.from("chats").insert([
               {
                 session_id: session.id,
@@ -210,12 +241,15 @@ export function ChatPanel({
                 response: response,
               },
             ]);
-            
+
             if (onSessionCreated) {
               onSessionCreated(session.id);
             }
           } catch (fallbackError: any) {
-            console.error("Fallback session creation also failed:", fallbackError);
+            console.error(
+              "Fallback session creation also failed:",
+              fallbackError,
+            );
           }
         } finally {
           setIsGeneratingTitle(false);
@@ -240,64 +274,31 @@ export function ChatPanel({
     setInput(question);
   };
 
-  return (
-    <div className="h-full flex flex-col glass rounded-2xl border-white/5 overflow-hidden">
-      {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-white"
-            onClick={onBackToSessions}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-card" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              {isTemporary ? "New Chat" : "AI Assistant"}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {isGeneratingTitle ? (
-                <span className="flex items-center gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Generating title...
-                </span>
-              ) : (
-                `${messages.length} message${messages.length !== 1 ? "s" : ""}`
-              )}
-            </p>
-          </div>
-        </div>
-        <Select value={model} onValueChange={setModel}>
-          <SelectTrigger className="w-[140px] h-8 text-xs bg-white/5 border-white/10">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="glass-strong border-white/10">
-            {models.map((m) => (
-              <SelectItem key={m.id} value={m.id} className="text-xs">
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
+  // Chat content component to reuse in both normal and focus modes
+  const ChatContent = ({
+    inFocusMode = false,
+    inputRef,
+  }: {
+    inFocusMode?: boolean;
+    inputRef?: React.RefObject<HTMLInputElement>;
+  }) => (
+    <>
       {/* Messages Area */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4 min-h-[200px]">
+      <ScrollArea className={cn("flex-1", inFocusMode && "h-full")}>
+        <div
+          className={cn(
+            "space-y-4 min-h-[200px]",
+            inFocusMode ? "max-w-4xl mx-auto px-4 py-6" : "p-4",
+          )}
+        >
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-8">
               <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
                 <Sparkles className="w-6 h-6 text-gray-500" />
               </div>
-              <p className="text-sm text-gray-400 mb-4">Start a new conversation</p>
+              <p className="text-sm text-gray-400 mb-4">
+                Start a new conversation
+              </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {suggestedQuestions.map((q, i) => (
                   <button
@@ -317,7 +318,7 @@ export function ChatPanel({
                   key={message.id || i}
                   className={cn(
                     "flex",
-                    message.role === "user" ? "justify-end" : "justify-start"
+                    message.role === "user" ? "justify-end" : "justify-start",
                   )}
                   style={{
                     animation: `fadeIn 0.3s ease-out ${i * 0.05}s both`,
@@ -330,10 +331,11 @@ export function ChatPanel({
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-3",
+                      "rounded-2xl px-4 py-3",
+                      inFocusMode ? "max-w-[70%]" : "max-w-[80%]",
                       message.role === "user"
                         ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-md"
-                        : "glass-light rounded-bl-md"
+                        : "glass-light rounded-bl-md",
                     )}
                   >
                     <p className="text-sm leading-relaxed">{message.content}</p>
@@ -347,9 +349,18 @@ export function ChatPanel({
                   </div>
                   <div className="glass-light rounded-2xl rounded-bl-md px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <div
+                        className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      />
+                      <div
+                        className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      />
+                      <div
+                        className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -361,13 +372,28 @@ export function ChatPanel({
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-white/5">
-        <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          "border-t border-white/5",
+          inFocusMode ? "p-4 bg-background/50 backdrop-blur-sm" : "p-4",
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            inFocusMode && "max-w-4xl mx-auto",
+          )}
+        >
           <div className="relative flex-1">
             <Input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isTemporary ? "Start your first message..." : "Ask about this video..."}
+              placeholder={
+                isTemporary
+                  ? "Start your first message..."
+                  : "Ask about this video..."
+              }
               className="pr-12 bg-white/5 border-white/10 focus:border-blue-500/50 rounded-xl"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -392,11 +418,153 @@ export function ChatPanel({
           </div>
         </div>
         <p className="text-xs text-gray-500 text-center mt-2">
-          {isTemporary 
+          {isTemporary
             ? "Send a message to create this chat session"
             : "AI may produce inaccurate information. Verify important details."}
         </p>
       </div>
+    </>
+  );
+
+  return (
+    <>
+      <div className="h-full flex flex-col glass rounded-2xl border-white/5 overflow-hidden">
+        {/* Chat Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white"
+              onClick={onBackToSessions}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-card" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                {isTemporary ? "New Chat" : "AI Assistant"}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {isGeneratingTitle ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Generating title...
+                  </span>
+                ) : (
+                  `${messages.length} message${messages.length !== 1 ? "s" : ""}`
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-8 w-8",
+                isFocusMode
+                  ? "text-blue-400"
+                  : "text-gray-400 hover:text-white",
+              )}
+              onClick={() => setIsFocusMode(true)}
+              title="Focus Mode"
+            >
+              <Focus className="w-4 h-4" />
+            </Button>
+            {/* <Select value={model} onValueChange={setModel}>
+              <SelectTrigger className="w-[140px] h-8 text-xs bg-white/5 border-white/10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="glass-strong border-white/10">
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select> */}
+          </div>
+        </div>
+
+        <ChatContent />
+      </div>
+
+      {/* Focus Mode Dialog */}
+      <Dialog open={isFocusMode} onOpenChange={setIsFocusMode}>
+        <DialogContent
+          className={cn(
+            "!fixed !inset-0 !w-screen !h-screen !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0 !p-0 gap-0 overflow-hidden",
+            "glass-strong",
+            "[&>button]:top-[calc(1rem+env(safe-area-inset-top))]",
+          )}
+        >
+          <DialogTitle className="sr-only">Chat Focus Mode</DialogTitle>
+
+          {/* Focus Mode Header */}
+          <div className="flex items-center justify-between px-6 pt-4 border-b border-white/5 bg-background/50 backdrop-blur-sm safe-area-pt">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-400 hover:text-white"
+                onClick={() => setIsFocusMode(false)}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-card" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  {isTemporary ? "New Chat" : "AI Assistant"}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {`${messages.length} message${messages.length !== 1 ? "s" : ""}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="w-[140px] h-8 text-xs bg-white/5 border-white/10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="glass-strong border-white/10">
+                  {models.map((m) => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select> */}
+              {/* {!isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-white"
+                  onClick={() => setIsFocusMode(false)}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Exit
+                </Button>
+              )} */}
+            </div>
+          </div>
+
+          {/* Chat Content in Focus Mode */}
+          <div className="flex-1 flex flex-col h-[calc(100vh-73px)]">
+            <ChatContent inFocusMode inputRef={focusInputRef} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <style jsx>{`
         @keyframes fadeIn {
@@ -410,6 +578,6 @@ export function ChatPanel({
           }
         }
       `}</style>
-    </div>
+    </>
   );
 }
