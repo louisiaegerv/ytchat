@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@/utils/supabase/client";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   VideoWithFlags,
@@ -351,6 +351,7 @@ function useEnhancedVideos(
 
 export default function VideosPage() {
   const { userId } = useUserId();
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   // UI state
@@ -504,9 +505,12 @@ export default function VideosPage() {
     // TODO: Implement bulk tag logic
   }, []);
 
-  const handleBulkAnalyze = useCallback(() => {
-    // TODO: Implement bulk analyze logic
-  }, []);
+  const handleGenerateReport = useCallback(() => {
+    if (selectedItems.length === 0) return;
+    // Navigate to reports/new with selected video IDs
+    const videoIdsParam = selectedItems.join(",");
+    router.push(`/reports/new?videoIds=${videoIdsParam}`);
+  }, [selectedItems, router]);
 
   // Selection mode toggle
   const handleToggleSelectionMode = useCallback(() => {
@@ -594,8 +598,8 @@ export default function VideosPage() {
           onClearSelection={clearSelection}
           onDelete={() => setShowDeleteDialog(true)}
           onTag={handleBulkTag}
-          onAnalyze={handleBulkAnalyze}
           onToggleBlur={handleToggleBlur}
+          onGenerateReport={handleGenerateReport}
         />
       )}
 

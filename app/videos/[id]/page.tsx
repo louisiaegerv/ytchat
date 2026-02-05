@@ -51,7 +51,7 @@ function VideoDetailPage() {
   const params = useParams();
   const videoId = params.id as string;
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [videoMeta, setVideoMeta] = useState<any | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);

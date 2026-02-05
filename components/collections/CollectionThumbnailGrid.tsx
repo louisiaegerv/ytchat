@@ -17,30 +17,31 @@ export function CollectionThumbnailGrid({
   const { data: videos = [] } = useCollectionVideosQuery(collectionId);
 
   // Logic:
-  // - If exactly 9 videos: show all 9 thumbnails (3x3 grid)
-  // - If more than 9 videos: show 8 thumbnails + counter in 9th slot
-  // - If less than 9 videos: show all thumbnails
+  // - If exactly 6 videos: show all 6 thumbnails (3x2 grid)
+  // - If more than 6 videos: show 5 thumbnails + counter in 6th slot
+  // - If less than 6 videos: show all thumbnails
+  const MAX_THUMBNAILS = 6;
   const actualVideoCount = videoCount || videos.length;
   let thumbnailsToShow: typeof videos = [];
   let showCounter = false;
   let counterValue = 0;
 
-  if (actualVideoCount === 9) {
-    // Exactly 9: show all 9
-    thumbnailsToShow = videos.slice(0, 9);
+  if (actualVideoCount === MAX_THUMBNAILS) {
+    // Exactly 6: show all 6
+    thumbnailsToShow = videos.slice(0, MAX_THUMBNAILS);
     showCounter = false;
-  } else if (actualVideoCount > 9) {
-    // More than 9: show 8 thumbnails + counter
-    thumbnailsToShow = videos.slice(0, 8);
+  } else if (actualVideoCount > MAX_THUMBNAILS) {
+    // More than 6: show 5 thumbnails + counter
+    thumbnailsToShow = videos.slice(0, MAX_THUMBNAILS - 1);
     showCounter = true;
-    counterValue = actualVideoCount - 8;
+    counterValue = actualVideoCount - (MAX_THUMBNAILS - 1);
   } else {
-    // Less than 9: show all
-    thumbnailsToShow = videos.slice(0, 9);
+    // Less than 6: show all
+    thumbnailsToShow = videos.slice(0, MAX_THUMBNAILS);
     showCounter = false;
   }
 
-  // Size configurations (always 3 columns for the 3x3 grid)
+  // Size configurations (3 columns, 2 rows for the 3x2 grid)
   const sizeClasses = {
     sm: "grid-cols-3 gap-1",
     md: "grid-cols-3 gap-2",
@@ -48,9 +49,9 @@ export function CollectionThumbnailGrid({
   };
 
   const containerHeight = {
-    sm: "h-20",
-    md: "h-28",
-    lg: "h-36",
+    sm: "h-14",
+    md: "h-20",
+    lg: "h-24",
   };
 
   if (thumbnailsToShow.length === 0) {

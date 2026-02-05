@@ -130,7 +130,20 @@ export function VideoInfoPanel({
                 {/* Channel & Meta Row */}
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Channel Name from joined channels table */}
-                  {videoMeta.channels?.title && (
+                  {videoMeta.channels?.title && videoMeta.channel_id && (
+                    <a
+                      href={`https://www.youtube.com/channel/${videoMeta.channel_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/30 transition-colors"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <span className="text-sm font-medium text-blue-400">
+                        {videoMeta.channels.title}
+                      </span>
+                    </a>
+                  )}
+                  {videoMeta.channels?.title && !videoMeta.channel_id && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
                       <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                       <span className="text-sm font-medium text-blue-400">

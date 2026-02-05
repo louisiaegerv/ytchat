@@ -1,30 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { models } from "@/utils/openrouter";
 import type { ChatMessage } from "@/types/chat";
 import type { TranscriptEntry } from "@/utils/transcriptUtils";
-import {
-  Bot,
-  MessageSquare,
-  Send,
-  Trash2,
-  Sparkles,
-  ChevronLeft,
-  Loader2,
-  Focus,
-  X,
-  Maximize2,
-} from "lucide-react";
+import { Bot, Send, Sparkles, ChevronLeft, Loader2, Focus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useChatMessagesQuery,
@@ -55,9 +36,6 @@ export function ChatPanel({
   sessionId,
   videoId,
   onBackToSessions,
-  model,
-  setModel,
-  parsedTranscript,
   onSendMessage,
   onSessionCreated,
   isTemporary = false,
@@ -477,18 +455,6 @@ export function ChatPanel({
             >
               <Focus className="w-4 h-4" />
             </Button>
-            {/* <Select value={model} onValueChange={setModel}>
-              <SelectTrigger className="w-[140px] h-8 text-xs bg-white/5 border-white/10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="glass-strong border-white/10">
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select> */}
           </div>
         </div>
 
@@ -532,31 +498,7 @@ export function ChatPanel({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* <Select value={model} onValueChange={setModel}>
-                <SelectTrigger className="w-[140px] h-8 text-xs bg-white/5 border-white/10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="glass-strong border-white/10">
-                  {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs">
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select> */}
-              {/* {!isMobile && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                  onClick={() => setIsFocusMode(false)}
-                >
-                  <X className="w-4 h-4 mr-1" />
-                  Exit
-                </Button>
-              )} */}
-            </div>
+            <div className="flex items-center gap-2"></div>
           </div>
 
           {/* Chat Content in Focus Mode */}

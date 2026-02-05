@@ -58,6 +58,30 @@ export default function ReportViewerPage() {
     }
   }, [reportId]);
 
+  // Poll for updates when report is generating
+  useEffect(() => {
+    if (!report || report.status !== "generating") return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/reports/${reportId}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        setReport(data.report);
+        
+        // Stop polling when report is no longer generating
+        if (data.report.status !== "generating") {
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error("Error polling report:", error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [report?.status, reportId]);
+
   const fetchReport = async () => {
     try {
       const response = await fetch(`/api/reports/${reportId}`);

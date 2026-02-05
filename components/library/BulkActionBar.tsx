@@ -5,10 +5,9 @@ import {
   CheckCheck,
   Trash,
   Tags,
-  Focus,
   Eye,
-  EyeOff,
   FolderPlus,
+  FilePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CollectionSelectorDialog from "@/components/library/CollectionSelectorDialog";
@@ -20,8 +19,8 @@ interface BulkActionBarProps {
   onClearSelection: () => void;
   onDelete: () => void;
   onTag?: () => void;
-  onAnalyze?: () => void;
   onToggleBlur?: () => void;
+  onGenerateReport?: () => void;
   selectedVideoIds?: string[];
 }
 
@@ -30,8 +29,8 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onClearSelection,
   onDelete,
   onTag,
-  onAnalyze,
   onToggleBlur,
+  onGenerateReport,
   selectedVideoIds = [],
 }) => {
   const [showCollectionDialog, setShowCollectionDialog] = useState(false);
@@ -114,23 +113,22 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={onAnalyze}
-          className="gap-2"
-          disabled={!onAnalyze || selectedCount === 0}
-        >
-          <Focus size={16} />
-          <span className="hidden sm:inline-block">Analyze</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
           onClick={onToggleBlur}
           className="gap-2"
           disabled={!onToggleBlur || selectedCount === 0}
         >
-          {/* Icon hint only; actual choice of Eye/EyeOff is determined by majority rule in container */}
           <Eye size={16} />
-          <span className="hidden sm:inline-block">Blur/Unblur</span>
+          <span className="hidden sm:inline-block">Blur</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onGenerateReport}
+          className="gap-2"
+          disabled={!onGenerateReport || selectedCount === 0}
+        >
+          <FilePlus size={16} />
+          <span className="hidden sm:inline-block">Report</span>
         </Button>
         <Button
           variant="outline"
@@ -140,7 +138,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
           disabled={selectedCount === 0}
         >
           <FolderPlus size={16} />
-          <span className="hidden sm:inline-block">Add to Collection</span>
+          <span className="hidden sm:inline-block">Collection</span>
         </Button>
         <Button
           variant="destructive"

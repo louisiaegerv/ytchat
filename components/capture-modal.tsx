@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ import {
   extractYouTubeVideoId,
   type YouTubeMetadata,
 } from "@/utils/youtubeMetadata";
+import { videosKeys } from "@/lib/queryKeys";
 
 export interface TranscriptEntry {
   start: number;
@@ -66,6 +68,7 @@ export function CaptureModal({
   onSubmit,
 }: CaptureModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userPreferences, setUserPreferences] =
@@ -523,6 +526,9 @@ export function CaptureModal({
           // Dismiss loading toast before showing success toast
           toastDismiss("capture-toast");
 
+          // Invalidate videos query to refresh the list
+          queryClient.invalidateQueries({ queryKey: videosKeys.all });
+
           // Show success toast with View button and metadata
           toastSuccess({
             message: "Summary ready!",
@@ -581,6 +587,12 @@ export function CaptureModal({
 
     // Dismiss bulk processing toast
     toastDismiss("bulk-processing-toast");
+
+    // Invalidate videos query to refresh the list
+    const successCount = results.filter((r) => r.success).length;
+    if (successCount > 0) {
+      queryClient.invalidateQueries({ queryKey: videosKeys.all });
+    }
 
     // Show batch completion dialog
     setBatchResults(results);

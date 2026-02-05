@@ -34,6 +34,7 @@ export default function NewReportPage() {
   const searchParams = useSearchParams();
   const collectionId = searchParams.get("collection");
   const regenerateId = searchParams.get("regenerate");
+  const videoIdsParam = searchParams.get("videoIds");
 
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +51,13 @@ export default function NewReportPage() {
   useEffect(() => {
     fetchCollections();
   }, []);
+
+  // Load videos when videoIds param is present (from bulk selection)
+  useEffect(() => {
+    if (videoIdsParam) {
+      fetchVideosByIds(videoIdsParam);
+    }
+  }, [videoIdsParam]);
 
   // When collections load and we have a collectionId from URL, set the name
   useEffect(() => {
@@ -89,6 +97,35 @@ export default function NewReportPage() {
       setCollections(collectionsWithCounts);
     } catch (error) {
       console.error("Error fetching collections:", error);
+    }
+  };
+
+  const fetchVideosByIds = async (videoIdsParam: string) => {
+    try {
+      const supabase = createClient();
+      const videoIds = videoIdsParam.split(",").filter(Boolean);
+      
+      if (videoIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("videos")
+        .select("id, title, channel_id, youtube_id")
+        .in("id", videoIds);
+
+      if (error) throw error;
+
+      const videoList = (data || []).map((video: any) => ({
+        id: video.id,
+        title: video.title || "Untitled",
+        channel_title: video.channel_id || "Unknown channel",
+      }));
+
+      setVideos(videoList);
+      // Auto-select all videos initially
+      setSelectedVideos(videoList.map((v) => v.id));
+    } catch (error) {
+      console.error("Error fetching videos:", error);
+      toast.error("Failed to load selected videos");
     }
   };
 
@@ -134,7 +171,13 @@ export default function NewReportPage() {
     setSelectedCollection(collectionId);
     const collection = collections.find((c) => c.id === collectionId);
     setSelectedCollectionName(collection?.name || "");
-    fetchCollectionVideos(collectionId);
+    if (collectionId) {
+      fetchCollectionVideos(collectionId);
+    } else {
+      // Clear videos if "All videos" is selected
+      setVideos([]);
+      setSelectedVideos([]);
+    }
   };
 
   const handleVideoToggle = (videoId: string) => {
@@ -229,15 +272,24 @@ export default function NewReportPage() {
               <select
                 value={selectedCollection}
                 onChange={(e) => handleCollectionChange(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                disabled={!!videoIdsParam}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">All videos...</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.name} ({collection.videoCount} videos)
-                  </option>
-                ))}
+                <option value="">
+                  {videoIdsParam ? "Videos pre-selected from library" : "All videos..."}
+                </option>
+                {!videoIdsParam &&
+                  collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name} ({collection.videoCount} videos)
+                    </option>
+                  ))}
               </select>
+              {videoIdsParam && (
+                <p className="text-xs text-muted-foreground">
+                  Videos were pre-selected from your library. Clear the URL to select a collection instead.
+                </p>
+              )}
             </div>
 
             {videos.length > 0 && (
